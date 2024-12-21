@@ -7,6 +7,9 @@ from adapters.src.repositories import Connection, SessionManager, SQLConnection
 
 from api.src.routes import health_check_router, product_router
 
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
@@ -21,3 +24,5 @@ def create_app() -> FastAPI:
     app.include_router(health_check_router, tags=["health check"])
     app.include_router(product_router, tags=["products"])
     return app
+
+print("DATABASE_URL:", os.getenv("DATABASE_URL"))

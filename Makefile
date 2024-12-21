@@ -38,7 +38,7 @@ dev_shell:	## Run a dev shell
 
 .PHONY: create_dev_env
 create_dev_env:
-	python3 -m venv .venv && \
+	python3.10 -m venv .venv && \
 	. .venv/bin/activate && \
 	pip install poetry && \
 	poetry install;
@@ -51,8 +51,11 @@ win_create_dev_env:
 			poetry install
 
 .PHONY: start
-start:  ## Starts the debug of the program
-	bash -c ". .venv/bin/activate && . .env && uvicorn main:app --reload"
+start: ## Starts the application
+	@echo "Starting application..."
+	@bash -c '. .venv/bin/activate && . .env && echo "DATABASE_URL is set to: \"${DATABASE_URL}\"" && uvicorn main:app --reload --log-level error'
+
+
 
 .PHONY: win_start
 win_start:  ## Starts the debug of the program in windows environment
@@ -63,3 +66,7 @@ win_start:  ## Starts the debug of the program in windows environment
 .PHONY: lint
 lint: ## Starts linter tool
 	flake8 .
+
+.PHONY: debug
+debug:
+	@bash -c '. .venv/bin/activate && . .env && echo "DATABASE_URL debug: \"$${DATABASE_URL}\""'
