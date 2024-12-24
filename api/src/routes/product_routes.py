@@ -9,6 +9,9 @@ from app.src.use_cases import (
     CreateProduct,
     CreateProductResponse,
     CreateProductRequest,
+    DeleteProductRequest,
+    DeleteProductResponse,
+    DeleteProduct,
 )
 from ..dtos import (
     ProductBase,
@@ -21,6 +24,8 @@ from factories.use_cases import (
     list_product_use_case,
     find_product_by_id_use_case,
     create_product_use_case,
+    delete_product_use_case,
+
 )
 
 product_router = APIRouter(prefix="/products")
@@ -75,3 +80,17 @@ async def create_product(
         **response._asdict()
     )
     return response_dto
+
+# Isadora's code starts here.
+
+#ROUTE TO DELETE
+@product_router.delete("/{product_id}", response_model=DeleteProductResponse)
+async def delete_product(
+    product_id: str, use_case: DeleteProduct = Depends(delete_product_use_case)
+) -> DeleteProductResponse:
+    response = use_case(DeleteProductRequest(product_id=product_id))
+    if response:
+        return response
+    else:
+        raise HTTPException(status_code=404, detail="Cannot find product with this ID.")
+    
