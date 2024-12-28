@@ -1,4 +1,5 @@
 from .product import (
+    
     ListProductResponse,
     ListProducts,
     FindProductById,
@@ -9,6 +10,9 @@ from .product import (
     CreateProductRequest, 
     DeleteProductRequest,
     DeleteProductResponse, 
-    DeleteProduct
+    DeleteProduct,
+    UpdateProductRequest,
+    UpdateProductResponse,
+    UpdateProduct
 
 )

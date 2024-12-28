@@ -12,6 +12,9 @@ from app.src.use_cases import (
     DeleteProductRequest,
     DeleteProductResponse,
     DeleteProduct,
+    UpdateProductRequest,
+    UpdateProductResponse,
+    UpdateProduct,
 )
 from ..dtos import (
     ProductBase,
@@ -19,12 +22,19 @@ from ..dtos import (
     CreateProductRequestDto,
     CreateProductResponseDto,
     FindProductByIdResponseDto,
+    DeleteProductResponse,
+    UpdateProductRequestDto,
+    UpdateProductResponseDto,
+
+
 )
 from factories.use_cases import (
     list_product_use_case,
     find_product_by_id_use_case,
     create_product_use_case,
     delete_product_use_case,
+    update_product_use_case,
+
 
 )
 
@@ -94,3 +104,45 @@ async def delete_product(
     else:
         raise HTTPException(status_code=404, detail="Cannot find product with this ID.")
     
+
+#Route to Update
+
+@product_router.put("/{product_id}", response_model=UpdateProductResponseDto)
+async def update_product(
+    product_id: str, 
+    request: UpdateProductRequestDto,
+    use_case: UpdateProduct = Depends(update_product_use_case),    
+) -> UpdateProductResponseDto | str:
+    # Validate product status
+    if request.status not in ["New", "Used", "For parts"]:
+        raise HTTPException(status_code=400, detail="Not a valid status value (New, Used, For parts)")
+    
+    # Convert the DTO to the request model expected by the use case
+    update_request = UpdateProductRequest(
+        product_id=request.product_id,
+        user_id=request.user_id,
+        name=request.name,
+        description=request.description,
+        price=request.price,
+        location=request.location,
+        status=request.status,
+        is_available=request.is_available,
+    )
+    
+    # Call the use case
+    response = use_case(product_id, update_request)
+    
+    if response:
+        # Convert the response to updateProductResponseDto
+        return UpdateProductResponseDto(
+            product_id=response.product_id,
+            user_id=response.user_id,
+            name=response.name,
+            description=response.description,
+            price=response.price,
+            location=response.location,
+            status=response.status,
+            is_available=response.is_available
+        )
+    else:
+        raise HTTPException(status_code=404, detail="Product not found")
