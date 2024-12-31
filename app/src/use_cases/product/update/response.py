@@ -6,7 +6,7 @@ from ....core import ProductStatuses
 
 
 class UpdateProductResponse(NamedTuple):
-    #product_id: str
+    product_id: str
     user_id: str
     name: str
     description: str | None

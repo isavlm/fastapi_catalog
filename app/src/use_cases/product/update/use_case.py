@@ -20,17 +20,12 @@ class UpdateProduct:
         self, product_id: str, request: UpdateProductRequest
     ) -> Optional[UpdateProductResponse]:
         try:
-            with self.product_repository.session() as session:
-                existing_product = self.product_repository.get_by_id(
-                    product_id, session=session
-                )
-                self.__verify_product_exists(
-                    existing_product, request_entity_id=request.product_id
-                )
-                response = self.product_repository.update(
-                    product_id, request, session=session
-                )
-                return response
+            print("executing update product use case")
+            product_existing = self.product_repository.get_by_id(request.product_id)
+            if product_existing:
+                print(request)
+                response: Optional[Product] = self.product_repository.update(product=request)
+            return response
         except ProductNotFoundException as e:
             raise HTTPException(status_code=404, detail=str(e))
         except ProductRepositoryException as e:

@@ -53,7 +53,7 @@ win_create_dev_env:
 .PHONY: start
 start: ## Starts the application
 	@echo "Starting application..."
-	@bash -c '. .venv/bin/activate && . .env && echo "DATABASE_URL is set to: \"${DATABASE_URL}\"" && uvicorn main:app --reload --log-level error'
+	bash -c '. .venv/bin/activate && uvicorn main:app --reload' 2>&1 | grep -v -e "/opt/homebrew/" -e "another-pattern" -e "_bootstrap"
 
 
 

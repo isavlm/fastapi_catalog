@@ -1,5 +1,6 @@
+import logging
 from fastapi import APIRouter, Depends
-
+from fastapi.exceptions import HTTPException
 from app.src.use_cases import (
     ListProducts,
     ListProductResponse,
@@ -16,6 +17,7 @@ from app.src.use_cases import (
     UpdateProductResponse,
     UpdateProduct,
 )
+from factories.use_cases.product import get_product_repository
 from ..dtos import (
     ProductBase,
     ListProductResponseDto,
@@ -94,16 +96,21 @@ async def create_product(
 # Isadora's code starts here.
 
 #ROUTE TO DELETE
-@product_router.delete("/{product_id}", response_model=DeleteProductResponse)
+@product_router.delete("/{product_id}", response_model=str)
 async def delete_product(
-    product_id: str, use_case: DeleteProduct = Depends(delete_product_use_case)
-) -> DeleteProductResponse:
-    response = use_case(DeleteProductRequest(product_id=product_id))
-    if response:
-        return response
-    else:
-        raise HTTPException(status_code=404, detail="Cannot find product with this ID.")
+    product_id: str
+) -> str:
+    try:
+        use_case = DeleteProduct(get_product_repository())
+        logging.info(f"Deleting product with ID {product_id}")
+        response = use_case(DeleteProductRequest(product_id=product_id))
+        logging.info(f"Product deleted: {response}")
+        return f"The product with id {response} was deleted."
+    except Exception as error:
+        logging.error(f"Error deleting product: {error}")
+        return str(error)
     
+
 
 #Route to Update
 
@@ -114,12 +121,13 @@ async def update_product(
     use_case: UpdateProduct = Depends(update_product_use_case),    
 ) -> UpdateProductResponseDto | str:
     # Validate product status
+    print("Validating product status")
     if request.status not in ["New", "Used", "For parts"]:
         raise HTTPException(status_code=400, detail="Not a valid status value (New, Used, For parts)")
     
     # Convert the DTO to the request model expected by the use case
     update_request = UpdateProductRequest(
-        product_id=request.product_id,
+        product_id=product_id,
         user_id=request.user_id,
         name=request.name,
         description=request.description,
