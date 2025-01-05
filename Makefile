@@ -53,9 +53,7 @@ win_create_dev_env:
 .PHONY: start
 start: ## Starts the application
 	@echo "Starting application..."
-	bash -c '. .venv/bin/activate && uvicorn main:app --reload' 2>&1 | grep -v -e "/opt/homebrew/" -e "another-pattern" -e "_bootstrap"
-
-
+	bash -c 'export DATABASE_URL=postgresql://root:toor@localhost:5432/ioet_catalog_db && . .venv/bin/activate && uvicorn main:app --reload' 2>&1 | grep -v -e "/opt/homebrew/" -e "another-pattern" -e "_bootstrap" -e "/.venv/lib/"
 
 .PHONY: win_start
 win_start:  ## Starts the debug of the program in windows environment

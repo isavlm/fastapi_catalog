@@ -16,19 +16,20 @@ class DeleteProduct:
     def __init__(self, product_repository):
         self.product_repository = product_repository
 
+    def __verify_product_exists(self, product: Product, request_entity_id: str) -> None:
+        if not product:
+            raise ProductNotFoundException(
+                f"Product with id {request_entity_id} not found"
+            )
+
     def __call__(self, request: DeleteProductRequest) -> Optional[DeleteProductResponse]:
         try:
-            with self.product_repository.session() as session:
-                existing_product = self.product_repository.get_by_id(
-                    request.product_id, session=session
-                )
-                self.__verify_product_exists(
-                    existing_product, request_entity_id=request.product_id
-                )
-                response = self.product_repository.delete(
-                    request.product_id, session=session
-                )
-                return response
+            existing_product = self.product_repository.get_by_id(request.product_id)
+            self.__verify_product_exists(
+                existing_product, request_entity_id=request.product_id
+            )
+            response = self.product_repository.delete(request.product_id)
+            return response
         except ProductNotFoundException as e:
             raise HTTPException(status_code=404, detail=str(e))
         except ProductRepositoryException as e:

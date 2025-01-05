@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import HTTPException
-from app.src.use_cases import (
+from app.src.use_cases.product import (
     ListProducts,
     ListProductResponse,
     FindProductById,
@@ -16,7 +16,11 @@ from app.src.use_cases import (
     UpdateProductRequest,
     UpdateProductResponse,
     UpdateProduct,
+    FilterProductByStatus,
+    FilterProductsByStatusRequest,
+    FilterProductsByStatusResponse
 )
+from app.src.exceptions import ProductNotFoundException, ProductRepositoryException
 from factories.use_cases.product import get_product_repository
 from ..dtos import (
     ProductBase,
@@ -27,8 +31,8 @@ from ..dtos import (
     DeleteProductResponse,
     UpdateProductRequestDto,
     UpdateProductResponseDto,
-
-
+    FilterProductByStatusResponseDto,
+    FilterProductsByStatusRequestDto
 )
 from factories.use_cases import (
     list_product_use_case,
@@ -36,8 +40,7 @@ from factories.use_cases import (
     create_product_use_case,
     delete_product_use_case,
     update_product_use_case,
-
-
+    filter_product_use_case
 )
 
 product_router = APIRouter(prefix="/products")
@@ -56,6 +59,36 @@ async def get_products(
         products=[ProductBase(**product) for product in response]
     )
     return response_dto
+
+
+#Route to filter by status
+@product_router.get("/filter-by-status", response_model=FilterProductByStatusResponseDto)
+async def filter_product_by_status(
+    status: str, 
+    use_case: FilterProductByStatus = Depends(filter_product_use_case)  # Use the use case to filter products by status
+) -> FilterProductByStatusResponseDto:
+    # Create the request with the status
+    response = use_case(FilterProductsByStatusRequest(status=status))
+    
+    if response.products:
+        # Convert the response to FilterProductByStatusResponseDto
+        return FilterProductByStatusResponseDto(
+            products=[
+                ProductBase(
+                    product_id=product.product_id,
+                    user_id=product.user_id,
+                    name=product.name,
+                    description=product.description,
+                    price=product.price,
+                    location=product.location,
+                    status=product.status,
+                    is_available=product.is_available
+                )
+                for product in response.products
+            ]
+        )
+    else:
+        raise HTTPException(status_code=404, detail="No products found with this status")
 
 
 @product_router.get("/{product_id}", response_model=FindProductByIdResponseDto)
@@ -96,19 +129,25 @@ async def create_product(
 # Isadora's code starts here.
 
 #ROUTE TO DELETE
-@product_router.delete("/{product_id}", response_model=str)
+@product_router.delete("/{product_id}", response_model=DeleteProductResponse)
 async def delete_product(
-    product_id: str
-) -> str:
+    product_id: str,
+    use_case: DeleteProduct = Depends(delete_product_use_case)
+) -> DeleteProductResponse:
+    logging.info(f"Deleting product with ID {product_id}")
     try:
-        use_case = DeleteProduct(get_product_repository())
-        logging.info(f"Deleting product with ID {product_id}")
         response = use_case(DeleteProductRequest(product_id=product_id))
         logging.info(f"Product deleted: {response}")
-        return f"The product with id {response} was deleted."
-    except Exception as error:
-        logging.error(f"Error deleting product: {error}")
-        return str(error)
+        return response
+    except ProductNotFoundException as e:
+        logging.error(f"Product not found: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except ProductRepositoryException as e:
+        logging.error(f"Repository error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error deleting product: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
     
 
 
@@ -120,11 +159,6 @@ async def update_product(
     request: UpdateProductRequestDto,
     use_case: UpdateProduct = Depends(update_product_use_case),    
 ) -> UpdateProductResponseDto | str:
-    # Validate product status
-    print("Validating product status")
-    if request.status not in ["New", "Used", "For parts"]:
-        raise HTTPException(status_code=400, detail="Not a valid status value (New, Used, For parts)")
-    
     # Convert the DTO to the request model expected by the use case
     update_request = UpdateProductRequest(
         product_id=product_id,

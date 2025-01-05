@@ -1,0 +1,55 @@
+{
+    "git.autofetch": true,
+    "python.analysis.inlayHints.callArgumentNames": "all",
+    "java.inlayHints.parameterNames.enabled": "all",
+    "python.analysis.inlayHints.functionReturnTypes": true,
+    "python.analysis.inlayHints.pytestParameters": true,
+    "python.analysis.inlayHints.variableTypes": true,
+    "javascript.inlayHints.enumMemberValues.enabled": true,
+    "javascript.inlayHints.functionLikeReturnTypes.enabled": true,
+    "javascript.inlayHints.parameterNames.enabled": "all",
+    "javascript.inlayHints.parameterTypes.enabled": true,
+    "javascript.inlayHints.propertyDeclarationTypes.enabled": true,
+    "javascript.inlayHints.variableTypes.enabled": true,
+    "git.pruneOnFetch": true,
+    "workbench.iconTheme": "vscode-icons",
+    "editor.minimap.enabled": false,
+    "files.autoSave": "afterDelay",
+    "editor.fontFamily": "Fira Code",
+    "editor.fontLigatures": true,
+    "javafx.libPath": "JAVA_GUI_JAVAFX/javafx-sdk-22.0.1/lib",
+    "java.project.referencedLibraries": [
+        "JAVA_GUI_JAVAFX/javafx-sdk-22.0.1/lib"
+    ],
+    "java.project.referencedLibrariesPath": "JAVA_GUI_JAVAFX/javafx-sdk-22.0.1/lib",
+    "java.project.sourcePaths": [
+        "src",
+        "src/main/java"
+    ],
+    "java.project.outputPaths": [
+        "bin",
+        "bin/classes"
+    ],
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.configuration.maven.userSettings": "/path/to/maven/settings.xml",
+    "python.createEnvironment.trigger": "off",
+    "redhat.telemetry.enabled": false,
+    "makefile.configureOnOpen": true,
+    // Python-specific settings for this project
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}"
+    ],
+    "python.envFile": "${workspaceFolder}/.env",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.formatting.provider": "black",
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.pylintEnabled": false,
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        }
+    }
+}
