@@ -3,7 +3,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from app.src import Product, ProductRepository, ProductRepositoryException
 from .tables import ProductSchema
-
+from app.src.exceptions import ProductNotFoundException
 
 class SQLProductRepository(ProductRepository):
     def __init__(self, session: Session) -> None:
@@ -80,16 +80,85 @@ class SQLProductRepository(ProductRepository):
 #Isadora's code starts here.
 
     def update(self, product: Product) -> Product:
-        # Needs Implementation
-        pass
-
-    def delete(self, product_id: str) -> Product:
         try:
             with self.session as session:
+                existing_product = (session.query(ProductSchema).filter(
+                    ProductSchema.product_id == product.product_id).first())
+                
+                if existing_product is None:
+                    raise ProductRepositoryException(
+                        method="edit", message="Product not found")
+                
+                existing_product.user_id = product.user_id
+                existing_product.name = product.name
+                existing_product.description = product.description
+                existing_product.price = product.price
+                existing_product.location = product.location
+                existing_product.status = product.status
+                existing_product.is_available = product.is_available
+                
+                session.commit()
+
+            print(f"Product updated successfully: {product}")
+            return product
+        except Exception as e:
+            self.session.rollback()
+            print(f"Error occurred: {str(e)}")
+            raise ProductRepositoryException(method="update", message=str(e))
+
+    def delete(self, product_id: str) -> Optional[Product]:
+        try:
+            with self.session as session:
+                product = (
+                    session.query(ProductSchema)
+                    .filter(ProductSchema.product_id == product_id)
+                    .first()
+                )
+                if product is None:
+                    raise ProductRepositoryException(
+                        method="delete", message="Product not found"
+                    )
                 session.query(ProductSchema).filter(
                     ProductSchema.product_id == product_id).delete()
                 session.commit()
-            return product_id
+                return Product(
+                    product_id=str(product.product_id),
+                    user_id=str(product.user_id),
+                    name=str(product.name),
+                    description=str(product.description),
+                    price=Decimal(product.price),
+                    location=str(product.location),
+                    status=str(product.status),
+                    is_available=bool(product.is_available),
+                )
         except Exception:
             self.session.rollback()
             raise ProductRepositoryException(method="delete")
+        
+    def filter(self, status: str) -> List[Product]:
+        try:
+            with self.session as session:
+                # Query to filter products by status and return a list of results
+                products = session.query(ProductSchema).filter(ProductSchema.status == status).all()
+
+                if not products:
+                    print(f"No products found with status: {status}")
+                    return []
+
+                # Return the list of products converted to Product model
+                return [
+                    Product(
+                        product_id=str(product.product_id),
+                        user_id=str(product.user_id),
+                        name=str(product.name),
+                        description=str(product.description),
+                        price=Decimal(product.price),
+                        location=str(product.location),
+                        status=str(product.status),
+                        is_available=bool(product.is_available),
+                        )
+                        for product in products
+                    ]
+        except Exception:
+            self.session.rollback()
+            raise ProductRepositoryException(method="get_by_status")

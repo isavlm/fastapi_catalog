@@ -4,5 +4,6 @@ from .product import (
     create_product_use_case,
     delete_product_use_case,
     update_product_use_case,
+    filter_product_use_case
     
 )

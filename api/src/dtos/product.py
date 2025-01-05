@@ -1,7 +1,11 @@
 from typing import List
 from decimal import Decimal
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
+from app.src.core import ProductStatuses
 
+"""After the issue with the update method,I added a validator to check if the product_id only accepts numbers.
+So now the user can only use numbers in the product_id.
+""" 
 
 class ProductBase(BaseModel):
     product_id: str
@@ -12,6 +16,29 @@ class ProductBase(BaseModel):
     location: str
     status: str
     is_available: bool
+
+# Isadora's code here.
+# Adding validator to check if the product_id only accepts numbers and to check if the status is in lowercase or uppercase. 
+
+
+    @validator('product_id')
+    def validate_product_id(cls, v):
+        if not v.isdigit():
+            raise ValueError("product_id should be numbers only")
+        return v
+
+    @validator('status')
+    def validate_status(cls, v):
+        try:
+            # Try to match the input (case-insensitive) with enum values
+            status_value = next(
+                status for status in ProductStatuses
+                if status.value.lower() == v.lower()
+            )
+            return status_value.value
+        except StopIteration:
+            valid_values = [status.value for status in ProductStatuses]
+            raise ValueError(f"Not a valid status value. Must be one of: {', '.join(valid_values)}")
 
 
 class ListProductResponseDto(BaseModel):
@@ -30,7 +57,6 @@ class CreateProductResponseDto(ProductBase):
     ...
 
 #Isadora's code starts here.
-#Should I have a DeleteProductRequestDto? I don't think so, but I'm not sure.
 class DeleteProductResponse(BaseModel):
     ...
 
@@ -39,12 +65,28 @@ class UpdateProductResponseDto(ProductBase):
     ...
 
 class UpdateProductRequestDto(ProductBase):
-    ...
+    @validator('product_id')
+    def validate_product_id(cls, v):
+        if not v.isdigit():
+            raise ValueError("product_id should be numbers only")
+        return v
 
-# class FilterProductsByStatusRequestDto(BaseModel):
-#     status: str
+class FilterProductsByStatusRequestDto(BaseModel):
+    status: str
 
-# class FilterProductByStatusResponseDto(BaseModel):
-#     products: List[ProductBase]
+    @validator('status')
+    def validate_status(cls, v):
+        try:
+            status_value = next(
+                status for status in ProductStatuses
+                if status.value.lower() == v.lower()
+            )
+            return status_value.value
+        except StopIteration:
+            valid_values = [status.value for status in ProductStatuses]
+            raise ValueError(f"Not a valid status value. Must be one of: {', '.join(valid_values)}")
 
-#Isadora's code ends here.
+class FilterProductByStatusResponseDto(BaseModel):
+    products: List[ProductBase]
+
+# Isadora's code ends here.

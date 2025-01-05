@@ -18,11 +18,14 @@ class ProductRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, product: Product) -> Product:
+    def delete(self, product_id: str) -> Product:
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, product_id: str) -> Product:
-        raise NotImplementedError
-    
+    def filter(self, filter_by: str) -> List[Product]:
+        return self.filter_by_status(filter_by)
+        # raise NotImplementedError
 
+    @abstractmethod
+    def update(self, product_id: str,  product: Product) -> Product:
+        raise NotImplementedError
