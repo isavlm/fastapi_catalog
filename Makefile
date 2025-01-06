@@ -68,3 +68,8 @@ lint: ## Starts linter tool
 .PHONY: debug
 debug:
 	@bash -c '. .venv/bin/activate && . .env && echo "DATABASE_URL debug: \"$${DATABASE_URL}\""'
+
+.PHONY: test
+test:  ## Run tests
+	@echo "Running tests..."
+	bash -c 'export PYTHONPATH=$$PYTHONPATH:$${PWD} && export DATABASE_URL=postgresql://root:toor@localhost:5432/ioet_catalog_db && . .venv/bin/activate && pytest -v' 2>&1 | grep -v -e "/opt/homebrew/" -e "another-pattern" -e "_bootstrap" -e "/.venv/lib/"
