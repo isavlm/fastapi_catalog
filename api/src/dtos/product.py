@@ -1,7 +1,7 @@
 from typing import List
 from decimal import Decimal
 from pydantic import BaseModel, validator
-from app.src.core import ProductStatuses
+from app.src.core.enums._product_statuses import ProductStatuses
 
 """After the issue with the update method,I added a validator to check if the product_id only accepts numbers.
 So now the user can only use numbers in the product_id.
@@ -11,7 +11,7 @@ class ProductBase(BaseModel):
     product_id: str
     user_id: str
     name: str
-    description: str | None
+    description: str
     price: Decimal
     location: str
     status: str
@@ -29,16 +29,9 @@ class ProductBase(BaseModel):
 
     @validator('status')
     def validate_status(cls, v):
-        try:
-            
-            status_value = next(
-                status for status in ProductStatuses
-                if status.value.lower() == v.lower()
-            )
-            return status_value.value
-        except StopIteration:
-            valid_values = [status.value for status in ProductStatuses]
-            raise ValueError(f"Not a valid status value. Must be one of: {', '.join(valid_values)}")
+        if v.lower() not in [s.value.lower() for s in ProductStatuses]:
+            raise ValueError(f"status must be one of: {', '.join([s.value for s in ProductStatuses])}")
+        return v.title()  # Normalize status to title case
 
 
 class ListProductResponseDto(BaseModel):
