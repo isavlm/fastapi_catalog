@@ -30,7 +30,7 @@ class ProductBase(BaseModel):
     @validator('status')
     def validate_status(cls, v):
         try:
-            # Try to match the input (case-insensitive) with enum values
+            
             status_value = next(
                 status for status in ProductStatuses
                 if status.value.lower() == v.lower()
