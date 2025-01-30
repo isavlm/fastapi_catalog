@@ -35,9 +35,19 @@ clean:	## Remove everything (containers, volumes, images) - WARNING: This will d
 stop:	## Stop containers without removing data
 	${compose_command} -f ${docker_compose_file_path} stop
 
+.PHONY: ensure_containers
+ensure_containers: ## Ensure Docker containers exist
+	@if ! docker ps -a | grep -q ${app_service}; then \
+		echo "Containers not found. Running initial setup..."; \
+		$(MAKE) up; \
+	fi
+
 .PHONY: start
-start:	## Start previously stopped containers (preserves data)
+start: ensure_containers ## Start Docker containers (creates them if they don't exist)
+	@echo "Starting containers..."
 	${compose_command} -f ${docker_compose_file_path} start
+	@echo "Containers started! The API will be available at http://localhost:8000"
+	@echo "View the API documentation at http://localhost:8000/docs"
 
 .PHONY: logs
 logs:	## Show logs of all services
