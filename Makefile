@@ -1,6 +1,10 @@
 compose_command ?= docker-compose
 docker_compose_file_path ?= infrastructure/docker/docker-compose.dev.yml
 app_service ?= ioet-catalog-backend
+db_name ?= ioet_catalog_db
+db_user ?= root
+db_password ?= toor
+db_port ?= 5432
 
 .PHONY: help
 help: ## Show this help (usage: make help)
@@ -15,13 +19,12 @@ help: ## Show this help (usage: make help)
 		} \
 	}' $(MAKEFILE_LIST)
 
-
 .PHONY: build
 build:	## Build project with docker-compose
 	${compose_command} -f ${docker_compose_file_path} build
 
 .PHONY: up
-up:	## Run all services locally
+up:	## Run all services in Docker (recommended for development)
 	${compose_command} -f ${docker_compose_file_path} up -d
 
 .PHONY: clean
@@ -45,11 +48,47 @@ dev_shell:	## Run a dev shell
 	@${compose_command} -f ${docker_compose_file_path} exec ${app_service} bash
 
 .PHONY: create_dev_env
-create_dev_env:
+create_dev_env: ## Create Python virtual environment and install dependencies
 	python3.10 -m venv .venv && \
 	. .venv/bin/activate && \
 	pip install poetry && \
-	poetry install;
+	poetry install
+
+.PHONY: ensure_postgres
+ensure_postgres: ## Ensure PostgreSQL is running (starts in Docker if not found locally)
+	@if ! pg_isready -h localhost -p ${db_port} >/dev/null 2>&1; then \
+		echo "Local PostgreSQL not found, starting in Docker..."; \
+		docker run --name postgres-local -e POSTGRES_USER=${db_user} -e POSTGRES_PASSWORD=${db_password} -e POSTGRES_DB=${db_name} -p ${db_port}:5432 -d postgres:15; \
+		echo "Waiting for PostgreSQL to start..."; \
+		until pg_isready -h localhost -p ${db_port} >/dev/null 2>&1; do sleep 1; done; \
+	fi
+
+.PHONY: local
+local: create_dev_env ensure_postgres ## Start application locally (automatically sets up database)
+	@echo "Starting application locally..."
+	. .venv/bin/activate && \
+	export DATABASE_URL=postgresql://${db_user}:${db_password}@localhost:${db_port}/${db_name} && \
+	poetry run uvicorn main:app --reload --port 8000
+
+.PHONY: test
+test: create_dev_env ensure_postgres ## Run tests (automatically sets up database)
+	@echo "Running tests..."
+	. .venv/bin/activate && \
+	export DATABASE_URL=postgresql://${db_user}:${db_password}@localhost:${db_port}/${db_name} && \
+	poetry run pytest api/tests/api/product_routes_test.py -v
+
+.PHONY: lint
+lint: ## Run linter
+	flake8 .
+
+.PHONY: debug
+debug: ## Show debug information
+	@echo "Database URL: postgresql://${db_user}:${db_password}@localhost:${db_port}/${db_name}"
+	@if pg_isready -h localhost -p ${db_port} >/dev/null 2>&1; then \
+		echo "PostgreSQL is running"; \
+	else \
+		echo "PostgreSQL is not running"; \
+	fi
 
 .PHONY: win_create_dev_env
 win_create_dev_env:
@@ -58,26 +97,8 @@ win_create_dev_env:
 			pip install poetry && \
 			poetry install
 
-.PHONY: local
-local: ## Starts the application locally (requires local PostgreSQL)
-	@echo "Starting application locally..."
-	export DATABASE_URL=postgresql://root:toor@localhost:5432/ioet_catalog_db && poetry run uvicorn main:app --reload --port 8000
-
 .PHONY: win_start
 win_start:  ## Starts the debug of the program in windows environment
 	.venv\Scripts\activate.bat && \
 	.env && \
 	uvicorn main:app --reload
-
-.PHONY: lint
-lint: ## Starts linter tool
-	flake8 .
-
-.PHONY: debug
-debug:
-	@bash -c '. .venv/bin/activate && . .env && echo "DATABASE_URL debug: \"$${DATABASE_URL}\""'
-
-.PHONY: test
-test:  ## Run tests
-	@echo "Running tests..."
-	poetry run pytest api/tests/api/product_routes_test.py -v
