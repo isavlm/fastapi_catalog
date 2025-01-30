@@ -54,6 +54,16 @@ class DeleteProductResponse(BaseModel):
     ...
 
 
+class DeleteProductRequest(BaseModel):
+    product_id: str
+
+    @validator('product_id')
+    def validate_product_id(cls, v):
+        if not v.isdigit():
+            raise ValueError("product_id should be numbers only")
+        return v
+
+
 class UpdateProductResponseDto(ProductBase):
     ...
 

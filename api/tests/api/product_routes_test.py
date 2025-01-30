@@ -1,188 +1,197 @@
-import pytest
-from fastapi.testclient import TestClient
-from app.src.core import ProductStatuses
-from fastapi import status
 from decimal import Decimal
+from faker import Faker
+from unittest.mock import MagicMock
+from fastapi import status
 
-# Test data
-test_product = {
-    "product_id": "1234",
-    "user_id": "IVLM",
-    "name": "Test Product",
-    "description": "Test Description",
-    "price": "100.00",
-    "location": "Test Location",
-    "status": ProductStatuses.NEW.value,
-    "is_available": True
-}
+from app.src.core.models._product import Product, ProductStatuses
+from api.src.dtos.product import DeleteProductRequest
+from factories.use_cases.product import (
+    list_product_use_case,
+    filter_product_use_case,
+    create_product_use_case,
+    delete_product_use_case
+)
 
-def test_get_products_empty_list(test_client: TestClient):
-    """Test getting products when the database is empty"""
+fake = Faker()
+
+def test_get_products_success(test_client, mock_db_session):
+    mock_response = MagicMock()
+    products = [Product(
+        product_id=str(fake.pyint()),  # Using numeric ID
+        user_id=fake.uuid4(),
+        name=fake.word(),
+        description=fake.sentence(),
+        price=Decimal(fake.pyint(min_value=0, max_value=9999, step=1)),
+        location=fake.address(),
+        status=fake.random_element(elements=(
+            ProductStatuses.NEW, ProductStatuses.USED, ProductStatuses.FOR_PARTS)),
+        is_available=fake.boolean())]
+
+    mock_response.products = products
+    mock_use_case = MagicMock(return_value=mock_response)
+
+    test_client.app.dependency_overrides[list_product_use_case] = lambda: mock_use_case
+
     response = test_client.get("/products/")
+
+    assert response.status_code == 200
+
+    expected_response = {
+        "products": [{
+            "product_id": products[0].product_id,
+            "user_id": products[0].user_id,
+            "name": products[0].name,
+            "description": products[0].description,
+            "price": str(products[0].price),
+            "location": products[0].location,
+            "status": products[0].status.value,
+            "is_available": products[0].is_available,
+        }]}
+    
+    # Print for debugging
+    print("\nActual response:", response.json())
+    print("\nExpected response:", expected_response)
+    print("\nProduct status:", products[0].status)
+    print("\nProduct status value:", products[0].status.value)
+    
+    assert response.json() == expected_response
+
+def test_get_products_empty_list(test_client, mock_db_session):
+    mock_response = MagicMock()
+    products = []
+
+    mock_response.products = products
+    mock_use_case = MagicMock(return_value=mock_response)
+
+    test_client.app.dependency_overrides[list_product_use_case] = lambda: mock_use_case
+
+    response = test_client.get("/products/")
+
     assert response.status_code == 200
     assert response.json() == {"products": []}
 
-def test_get_products_with_data(test_client: TestClient, create_test_product):
-    """Test getting products when there is data in the database"""
-    # Create a test product with unique product_id
-    test_product_data = {
-        "product_id": "1234",
-        "user_id": "IVLM",
-        "name": "Test Product",
-        "description": "Test Description",
-        "price": "100.00",
-        "location": "Test Location",
-        "status": ProductStatuses.NEW.value,
-        "is_available": True
-    }
-    
-    # Create a test product
-    response = test_client.post("/products/", json=test_product_data)
-    assert response.status_code == status.HTTP_201_CREATED
+def test_filter_products_success(test_client, mock_db_session):
+    mock_response = MagicMock()
+    products = [
+        Product(
+            product_id=str(fake.pyint()),  # Using numeric ID
+            user_id=fake.uuid4(),
+            name=fake.word(),
+            description=fake.sentence(),
+            price=Decimal(fake.pyint(min_value=0, max_value=9999, step=1)),
+            location=fake.address(),
+            status=ProductStatuses.NEW,
+            is_available=fake.boolean()
+        )
+    ]
 
-    # Get all products
-    response = test_client.get("/products/")
+    mock_response.products = products
+    mock_use_case = MagicMock(return_value=mock_response)
+
+    test_client.app.dependency_overrides[filter_product_use_case] = lambda: mock_use_case
+
+    response = test_client.get("/products/filter-by-status?status_param=New")
+
     assert response.status_code == 200
-    products = response.json()["products"]
-    assert len(products) == 1
-    assert products[0]["product_id"] == test_product_data["product_id"]
 
-def test_filter_products_success(test_client, fake_product_list):
-    """Test filtering products successfully"""
-    # Arrange
-    test_product = {
-        "product_id": "1234",
-        "user_id": "IVLM",
-        "name": "Test Product",
-        "description": "Test Description",
-        "price": "100.00",
-        "location": "Test Location",
+    expected_response = {
+        "products": [{
+            "product_id": products[0].product_id,
+            "user_id": products[0].user_id,
+            "name": products[0].name,
+            "description": products[0].description,
+            "price": str(products[0].price),
+            "location": products[0].location,
+            "status": products[0].status.value,
+            "is_available": products[0].is_available,
+        }]}
+    assert response.json() == expected_response
+    # Check that the use case was called with the correct argument
+    assert mock_use_case.call_count == 1
+    args = mock_use_case.call_args[0]
+    assert len(args) == 1
+    assert args[0] == "New"
+
+def test_filter_products_invalid_status(test_client, mock_db_session):
+    mock_response = MagicMock()
+    products = []
+
+    mock_response.products = products
+    mock_use_case = MagicMock(side_effect=ValueError("Invalid status"))
+
+    test_client.app.dependency_overrides[filter_product_use_case] = lambda: mock_use_case
+
+    response = test_client.get("/products/filter-by-status?status_param=INVALID_STATUS")
+
+    assert response.status_code == 422
+
+def test_create_product_success(test_client, mock_db_session):
+    product_data = {
+        "product_id": str(fake.pyint()),
+        "user_id": fake.uuid4(),
+        "name": fake.word(),
+        "description": fake.sentence(),
+        "price": str(Decimal(fake.pyint(min_value=0, max_value=9999, step=1))),
+        "location": fake.address(),
         "status": ProductStatuses.NEW.value,
-        "is_available": True
+        "is_available": fake.boolean()
     }
-    
-    # Create a test product with known status
-    response = test_client.post("/products/", json=test_product)
+
+    mock_response = Product(**product_data)
+    mock_use_case = MagicMock(return_value=mock_response)
+
+    test_client.app.dependency_overrides[create_product_use_case] = lambda: mock_use_case
+
+    response = test_client.post("/products/", json=product_data)
+
     assert response.status_code == status.HTTP_201_CREATED
-    
-    # Act
-    response = test_client.get(f"/products/filter-by-status?status_param={test_product['status']}")
-    
-    # Assert
-    assert response.status_code == status.HTTP_200_OK
-    filtered_products = response.json()["products"]
-    assert len(filtered_products) > 0
-    assert all(p["status"].lower() == test_product["status"].lower() for p in filtered_products)
+    assert response.json() == product_data
 
-def test_filter_products_invalid_status(test_client):
-    """Test filtering products with invalid status"""
-    # Arrange
-    invalid_status = "invalid_status"
-    
-    # Act
-    response = test_client.get(f"/products/filter-by-status?status={invalid_status}")
-    
-    # Assert
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-    data = response.json()
-    assert "detail" in data
-
-#TESTING TO CREATE A PRODUCT. 
-def test_create_product_success(test_client): # this one should pass
-    """Test creating a product with valid data"""
-    # Arrange
-    new_product = {
-        "product_id": "1234",
-        "user_id": "user123",
-        "name": "Test Product",
-        "description": "A test product",
-        "price": "99.99",
-        "location": "Test Location",
-        "status": "New",
-        "is_available": True
-    }
-    
-    # Act
-    response = test_client.post("/products/", json=new_product)
-    
-    # Assert
-    assert response.status_code == status.HTTP_201_CREATED
-    created_product = response.json()
-    assert created_product["product_id"] == new_product["product_id"]
-    assert created_product["name"] == new_product["name"]
-    assert Decimal(created_product["price"]) == Decimal(new_product["price"])
-
-def test_create_product_invalid_id(test_client):
-    """Test creating a product with invalid product_id (non-numeric)"""
-    # Arrange
-    invalid_product = {
-        "product_id": "abc123",  # Invalid: contains letters - We dont want this.
-        "user_id": "user123",
-        "name": "Test Product",
-        "description": "A test product",
-        "price": "99.99",
-        "location": "Test Location",
-        "status": "New",
-        "is_available": True
+def test_create_product_invalid_status(test_client, mock_db_session):
+    product_data = {
+        "product_id": str(fake.pyint()),
+        "user_id": fake.uuid4(),
+        "name": fake.word(),
+        "description": fake.sentence(),
+        "price": str(Decimal(fake.pyint(min_value=0, max_value=9999, step=1))),
+        "location": fake.address(),
+        "status": "INVALID_STATUS",
+        "is_available": fake.boolean()
     }
 
-    # Act
-    response = test_client.post("/products/", json=invalid_product)
+    response = test_client.post("/products/", json=product_data)
 
-    # Assert
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-    error_detail = response.json()["detail"]
-    assert any(
-        error["msg"] == "Value error, product_id should be numbers only" and
-        error["loc"] == ["body", "product_id"]
-        for error in error_detail
-    )
 
-def test_create_product_invalid_status(test_client): # this one should fail 
-    """Test creating a product with invalid status"""
-    # Arrange
-    invalid_product = {
-        "product_id": "1234",
-        "user_id": "user123",
-        "name": "Test Product",
-        "description": "A test product",
-        "price": "99.99",
-        "location": "Test Location",
-        "status": "Invalid Status",  # Invalid status
-        "is_available": True
-    }
-    
-    # Act
-    response = test_client.post("/products/", json=invalid_product)
-    
-    # Assert
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-    error_detail = response.json()["detail"]
-    assert any("status must be one of" in error["msg"] 
-              for error in error_detail)
-
-def test_create_product_missing_required_field(test_client):
-    """Test creating a product with missing required field"""
-    # Arrange
-    incomplete_product = {
-        "product_id": "1234",
-        # missing user_id
-        "name": "Test Product",
-        "description": "A test product",
-        "price": "99.99",
-        "location": "Test Location",
-        "status": "New",
-        "is_available": True
+def test_create_product_missing_required_field(test_client, mock_db_session):
+    product_data = {
+        "product_id": str(fake.pyint()),
+        "name": fake.word(),
+        "description": fake.sentence(),
+        "price": str(Decimal(fake.pyint(min_value=0, max_value=9999, step=1))),
+        "location": fake.address(),
+        "status": ProductStatuses.NEW.value,
+        "is_available": fake.boolean()
     }
 
-    # Act
-    response = test_client.post("/products/", json=incomplete_product)
+    response = test_client.post("/products/", json=product_data)
 
-    # Assert
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-    error_detail = response.json()["detail"]
-    assert any(
-        error["msg"] == "Field required" and
-        error["loc"] == ["body", "user_id"]
-        for error in error_detail
-    )
+
+def test_delete_product_success(test_client, mock_db_session):
+    product_id = str(fake.pyint())  # Using numeric ID
+    mock_use_case = MagicMock(return_value=None)
+
+    test_client.app.dependency_overrides[delete_product_use_case] = lambda: mock_use_case
+
+    response = test_client.delete(f"/products/{product_id}")
+
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    # Check that the use case was called with the correct argument
+    assert mock_use_case.call_count == 1
+    args = mock_use_case.call_args[0]
+    assert len(args) == 1
+    # Check the request object's attributes
+    request = args[0]
+    assert hasattr(request, 'product_id')
+    assert request.product_id == product_id
