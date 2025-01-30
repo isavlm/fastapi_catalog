@@ -46,8 +46,12 @@ ensure_containers: ## Ensure Docker containers exist
 start: ensure_containers ## Start Docker containers (creates them if they don't exist)
 	@echo "Starting containers..."
 	${compose_command} -f ${docker_compose_file_path} start
-	@echo "Containers started! The API will be available at http://localhost:8000"
-	@echo "View the API documentation at http://localhost:8000/docs"
+	@echo "\n\033[32m"
+	@echo "╔═══════════════════════════════════════════╗"
+	@echo "║         Application Up and Running!        ║"
+	@echo "╚═══════════════════════════════════════════╝\033[0m"
+	@echo "\nAPI is available at: \033[36mhttp://localhost:8000\033[0m"
+	@echo "Documentation at:   \033[36mhttp://localhost:8000/docs\033[0m\n"
 
 .PHONY: logs
 logs:	## Show logs of all services
@@ -76,6 +80,12 @@ ensure_postgres: ## Ensure PostgreSQL is running (starts in Docker if not found 
 .PHONY: local
 local: create_dev_env ensure_postgres ## Start application locally (automatically sets up database)
 	@echo "Starting application locally..."
+	@echo "\n\033[32m"
+	@echo "╔═══════════════════════════════════════════╗"
+	@echo "║         Application Up and Running!        ║"
+	@echo "╚═══════════════════════════════════════════╝\033[0m"
+	@echo "\nAPI is available at: \033[36mhttp://localhost:8000\033[0m"
+	@echo "Documentation at:   \033[36mhttp://localhost:8000/docs\033[0m\n"
 	. .venv/bin/activate && \
 	export DATABASE_URL=postgresql://${db_user}:${db_password}@localhost:${db_port}/${db_name} && \
 	poetry run uvicorn main:app --reload --port 8000
