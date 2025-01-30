@@ -1,6 +1,6 @@
 from typing import List
 from decimal import Decimal
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from app.src.core.enums._product_statuses import ProductStatuses
 
 """After the issue with the update method,I added a validator to check if the product_id only accepts numbers.
@@ -21,13 +21,13 @@ class ProductBase(BaseModel):
 # Adding validator to check if the product_id only accepts numbers and to check if the status is in lowercase or uppercase. 
 
 
-    @validator('product_id')
+    @field_validator('product_id')
     def validate_product_id(cls, v):
         if not v.isdigit():
             raise ValueError("product_id should be numbers only")
         return v
 
-    @validator('status')
+    @field_validator('status')
     def validate_status(cls, v):
         if v.lower() not in [s.value.lower() for s in ProductStatuses]:
             raise ValueError(f"status must be one of: {', '.join([s.value for s in ProductStatuses])}")
@@ -57,7 +57,7 @@ class DeleteProductResponse(BaseModel):
 class DeleteProductRequest(BaseModel):
     product_id: str
 
-    @validator('product_id')
+    @field_validator('product_id')
     def validate_product_id(cls, v):
         if not v.isdigit():
             raise ValueError("product_id should be numbers only")
@@ -68,7 +68,7 @@ class UpdateProductResponseDto(ProductBase):
     ...
 
 class UpdateProductRequestDto(ProductBase):
-    @validator('product_id')
+    @field_validator('product_id')
     def validate_product_id(cls, v):
         if not v.isdigit():
             raise ValueError("product_id should be numbers only")
@@ -77,7 +77,7 @@ class UpdateProductRequestDto(ProductBase):
 class FilterProductsByStatusRequestDto(BaseModel):
     status: str
 
-    @validator('status')
+    @field_validator('status')
     def validate_status(cls, v):
         try:
             status_value = next(

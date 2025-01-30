@@ -12,7 +12,7 @@ services:
         depends_on:
             - ioet-catalog-database
         environment:
-            DATABASE_URL: postgres://root:toor@postgres/ioet_catalog_db
+            DATABASE_URL: postgresql://root:toor@ioet-catalog-database/ioet_catalog_db
 
     ioet-catalog-database:
         container_name: ioet-catalog-database
@@ -25,4 +25,3 @@ services:
             - ../postgres-data:/var/lib/postgresql/data
         ports:
             - "5432:5432"
-
