@@ -25,8 +25,16 @@ up:	## Run all services locally
 	${compose_command} -f ${docker_compose_file_path} up -d
 
 .PHONY: clean
-clean:	## Remove everything
+clean:	## Remove everything (containers, volumes, images) - WARNING: This will delete all data
 	${compose_command} -f ${docker_compose_file_path} down --volumes --remove-orphans --rmi all
+
+.PHONY: stop
+stop:	## Stop containers without removing data
+	${compose_command} -f ${docker_compose_file_path} stop
+
+.PHONY: start
+start:	## Start previously stopped containers (preserves data)
+	${compose_command} -f ${docker_compose_file_path} start
 
 .PHONY: logs
 logs:	## Show logs of all services
@@ -50,9 +58,9 @@ win_create_dev_env:
 			pip install poetry && \
 			poetry install
 
-.PHONY: start
-start: ## Starts the application
-	@echo "Starting application..."
+.PHONY: local
+local: ## Starts the application locally (requires local PostgreSQL)
+	@echo "Starting application locally..."
 	export DATABASE_URL=postgresql://root:toor@localhost:5432/ioet_catalog_db && poetry run uvicorn main:app --reload --port 8000
 
 .PHONY: win_start
