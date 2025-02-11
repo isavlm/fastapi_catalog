@@ -43,6 +43,7 @@ from factories.use_cases import (
     update_product_use_case,
     filter_product_use_case
 )
+from datetime import datetime
 
 product_router = APIRouter(prefix="/products")
 
@@ -261,3 +262,9 @@ async def update_product(
         )
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+
+@product_router.get("/status")
+async def get_status():
+    """Health check endpoint for AWS."""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
