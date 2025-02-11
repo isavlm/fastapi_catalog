@@ -73,8 +73,11 @@ async def filter_product_by_status(
     use_case: FilterProductByStatus = Depends(filter_product_use_case)
 ) -> FilterProductByStatusResponseDto:
     try:
-        # Call use case with just the status string
-        response = use_case(status_param)
+        # Convert status_param to request object with enum value
+        request = FilterProductsByStatusRequest(status=ProductStatuses(status_param))
+        
+        # Call use case with the request object
+        response = use_case(request)
         
         # Convert the response to FilterProductByStatusResponseDto
         return FilterProductByStatusResponseDto(

@@ -2,6 +2,7 @@ from typing import List, Optional
 from decimal import Decimal
 from sqlalchemy.orm import Session
 from app.src import Product, ProductRepository, ProductRepositoryException
+from app.src.core.enums._product_statuses import ProductStatuses
 from .tables import ProductSchema
 from app.src.exceptions import ProductNotFoundException
 
@@ -23,7 +24,7 @@ class SQLProductRepository(ProductRepository):
                         description=str(product.description),
                         price=Decimal(product.price),
                         location=str(product.location),
-                        status=str(product.status),
+                        status=product.status,
                         is_available=bool(product.is_available),
                     )
                     for product in products
@@ -70,14 +71,12 @@ class SQLProductRepository(ProductRepository):
                     description=str(product.description),
                     price=Decimal(product.price),
                     location=str(product.location),
-                    status=str(product.status),
+                    status=product.status,
                     is_available=bool(product.is_available),
                 )
         except Exception:
             self.session.rollback()
             raise ProductRepositoryException(method="find")
-
-#Isadora's code starts here.
 
     def update(self, product: Product) -> Product:
         try:
@@ -128,21 +127,21 @@ class SQLProductRepository(ProductRepository):
                     description=str(product.description),
                     price=Decimal(product.price),
                     location=str(product.location),
-                    status=str(product.status),
+                    status=product.status,
                     is_available=bool(product.is_available),
                 )
         except Exception:
             self.session.rollback()
             raise ProductRepositoryException(method="delete")
         
-    def filter(self, status: str) -> List[Product]:
+    def filter(self, status: ProductStatuses) -> List[Product]:
         try:
             with self.session as session:
                 # Query to filter products by status and return a list of results
-                products = session.query(ProductSchema).filter(ProductSchema.status == status).all()
+                products = session.query(ProductSchema).filter(ProductSchema.status == status.value).all()
 
                 if not products:
-                    print(f"No products found with status: {status}")
+                    print(f"No products found with status: {status.value}")
                     return []
 
                 # Return the list of products converted to Product model
@@ -154,7 +153,7 @@ class SQLProductRepository(ProductRepository):
                         description=str(product.description),
                         price=Decimal(product.price),
                         location=str(product.location),
-                        status=str(product.status),
+                        status=product.status,
                         is_available=bool(product.is_available),
                         )
                         for product in products

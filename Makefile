@@ -95,7 +95,7 @@ test: create_dev_env ensure_postgres ## Run tests (automatically sets up databas
 	@echo "Running tests..."
 	. .venv/bin/activate && \
 	export DATABASE_URL=postgresql://${db_user}:${db_password}@localhost:${db_port}/${db_name} && \
-	poetry run pytest api/tests/api/product_routes_test.py -v
+	poetry run pytest -v
 
 .PHONY: lint
 lint: ## Run linter

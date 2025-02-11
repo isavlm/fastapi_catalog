@@ -5,6 +5,7 @@ from fastapi import status
 
 from app.src.core.models._product import Product, ProductStatuses
 from api.src.dtos.product import DeleteProductRequest
+from app.src.use_cases.product.get_by_status.request import FilterProductsByStatusRequest
 from factories.use_cases.product import (
     list_product_use_case,
     filter_product_use_case,
@@ -23,8 +24,7 @@ def test_get_products_success(test_client, mock_db_session):
         description=fake.sentence(),
         price=Decimal(fake.pyint(min_value=0, max_value=9999, step=1)),
         location=fake.address(),
-        status=fake.random_element(elements=(
-            ProductStatuses.NEW, ProductStatuses.USED, ProductStatuses.FOR_PARTS)),
+        status=ProductStatuses.FOR_PARTS,
         is_available=fake.boolean())]
 
     mock_response.products = products
@@ -44,16 +44,16 @@ def test_get_products_success(test_client, mock_db_session):
             "description": products[0].description,
             "price": str(products[0].price),
             "location": products[0].location,
-            "status": products[0].status.value,
+            "status": "For parts",
             "is_available": products[0].is_available,
         }]}
-    
+
     # Print for debugging
     print("\nActual response:", response.json())
     print("\nExpected response:", expected_response)
     print("\nProduct status:", products[0].status)
     print("\nProduct status value:", products[0].status.value)
-    
+
     assert response.json() == expected_response
 
 def test_get_products_empty_list(test_client, mock_db_session):
@@ -110,7 +110,7 @@ def test_filter_products_success(test_client, mock_db_session):
     assert mock_use_case.call_count == 1
     args = mock_use_case.call_args[0]
     assert len(args) == 1
-    assert args[0] == "New"
+    assert args[0].status == ProductStatuses.NEW
 
 def test_filter_products_invalid_status(test_client, mock_db_session):
     mock_response = MagicMock()

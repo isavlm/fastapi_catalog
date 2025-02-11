@@ -31,7 +31,11 @@ class ProductBase(BaseModel):
     def validate_status(cls, v):
         if v.lower() not in [s.value.lower() for s in ProductStatuses]:
             raise ValueError(f"status must be one of: {', '.join([s.value for s in ProductStatuses])}")
-        return v.title()  # Normalize status to title case
+        # Return the exact enum value instead of title case
+        for status in ProductStatuses:
+            if v.lower() == status.value.lower():
+                return status.value
+        return v
 
 
 class ListProductResponseDto(BaseModel):
