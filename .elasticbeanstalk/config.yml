@@ -3,10 +3,14 @@ branch-defaults:
     environment: catalog-api-env
     group_suffix: null
   main:
-    environment: catalog-api-env
+    environment: fastapi-catalog-env
     group_suffix: null
+environment-defaults:
+  catalog-api-env:
+    branch: null
+    repository: null
 global:
-  application_name: catalog-api
+  application_name: fastapi-catalog
   branch: null
   default_ec2_keyname: null
   default_platform: Python 3.11
