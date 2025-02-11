@@ -17,6 +17,7 @@ fastapi==0.101.1
 fastjsonschema==2.20.0
 filelock==3.15.4
 flake8==6.1.0
+gunicorn==21.2.0
 h11==0.14.0
 httpcore==0.17.3
 httpx==0.24.1
@@ -61,7 +62,12 @@ starlette==0.27.0
 tomlkit==0.13.0
 trove-classifiers==2024.7.2
 typing_extensions==4.12.2
-urllib3==2.2.2
-uvicorn==0.23.2
-virtualenv==20.26.3
+urllib3<2.1.0
+uvicorn==0.27.0
+uvicorn[standard]
 xattr==1.1.0
+
+# AWS Dependencies
+boto3>=1.26.0
+botocore>=1.29.0
+python-dotenv>=0.19.0
