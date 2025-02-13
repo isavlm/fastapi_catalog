@@ -7,8 +7,8 @@ on:
 
 env:
   AWS_REGION: us-west-2
-  EB_APPLICATION_NAME: catalog-api
-  EB_ENVIRONMENT_NAME: catalog-api-env
+  EB_APPLICATION_NAME: fastapi-catalog-BE-CCP-C2
+  EB_ENVIRONMENT_NAME: Fastapi-catalog-BE-CCP-C2-env
   DEPLOY_PACKAGE_NAME: catalog-api-${{ github.sha }}.zip
 
 jobs:
