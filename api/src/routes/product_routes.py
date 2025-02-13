@@ -1,41 +1,47 @@
+from fastapi import APIRouter, HTTPException, Depends, status
+from typing import List, Optional
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.exceptions import HTTPException
-from app.src.use_cases.product import (
-    ListProducts,
-    ListProductResponse,
-    FindProductById,
-    FindProductByIdResponse,
-    FindProductByIdRequest,
-    CreateProduct,
-    CreateProductResponse,
-    CreateProductRequest,
-    DeleteProductRequest,
-    DeleteProductResponse,
-    DeleteProduct,
-    UpdateProductRequest,
-    UpdateProductResponse,
-    UpdateProduct,
-    FilterProductByStatus,
-    FilterProductsByStatusRequest,
-    FilterProductsByStatusResponse
-)
-from app.src.core.enums._product_statuses import ProductStatuses
-from app.src.exceptions import ProductNotFoundException, ProductRepositoryException
-from factories.use_cases.product import get_product_repository
-from ..dtos import (
-    ProductBase,
-    ListProductResponseDto,
+
+from api.src.dtos import (
     CreateProductRequestDto,
+    UpdateProductRequestDto,
+    DeleteProductRequestDto,
+    DeleteProductResponse,
+    FilterProductsByStatusRequestDto,
+    ListProductResponseDto,
     CreateProductResponseDto,
     FindProductByIdResponseDto,
-    DeleteProductResponse,
-    UpdateProductRequestDto,
     UpdateProductResponseDto,
     FilterProductByStatusResponseDto,
-    FilterProductsByStatusRequestDto
+    ProductBase
 )
-from factories.use_cases import (
+
+from app.src.use_cases.product import (
+    ListProductResponse,
+    FindProductByIdResponse,
+    CreateProductResponse,
+    UpdateProductResponse,
+    FilterProductsByStatusResponse,
+    FilterProductsByStatusRequest,
+    ListProducts,
+    FindProductById,
+    CreateProduct,
+    DeleteProduct,
+    UpdateProduct,
+    FilterProductByStatus,
+    DeleteProductResponse,
+    FindProductByIdRequest,
+    CreateProductRequest,
+    DeleteProductRequest,
+    UpdateProductRequest,
+    FilterProductsByStatusRequest,
+)
+
+from app.src.core.enums._product_statuses import ProductStatuses
+from app.src.core.models import Product
+from app.src.exceptions import ProductNotFoundException, ProductRepositoryException
+from factories.use_cases.product import (
+    get_product_repository,
     list_product_use_case,
     find_product_by_id_use_case,
     create_product_use_case,
@@ -43,6 +49,11 @@ from factories.use_cases import (
     update_product_use_case,
     filter_product_use_case
 )
+from datetime import datetime
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 product_router = APIRouter(prefix="/products")
 
@@ -50,50 +61,45 @@ product_router = APIRouter(prefix="/products")
 @product_router.get("/", response_model=ListProductResponseDto)
 async def get_products(
     use_case: ListProducts = Depends(list_product_use_case),
-) -> ListProductResponse:
-    response_list = use_case()
-    response = [
-        {**product._asdict(), "status": str(product.status.value)}
-        for product in response_list.products
-    ]
-    response_dto: ListProductResponseDto = ListProductResponseDto(
-        products=[ProductBase(**product) for product in response]
+) -> ListProductResponseDto:
+    response = use_case()
+    return ListProductResponseDto(
+        products=[ProductBase(
+            product_id=str(product.product_id),
+            user_id=product.user_id,
+            name=product.name,
+            description=product.description,
+            price=product.price,
+            location=product.location,
+            status=product.status.value,
+            is_available=product.is_available
+        ) for product in response.products]
     )
-    return response_dto
 
 
-#Route to filter by status
 @product_router.get("/filter-by-status", response_model=FilterProductByStatusResponseDto)
 async def filter_product_by_status(
     status_param: str,
     use_case: FilterProductByStatus = Depends(filter_product_use_case)
 ) -> FilterProductByStatusResponseDto:
     try:
-        # Validate status before calling use case
-        if status_param.lower() not in [s.value.lower() for s in ProductStatuses]:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=[{
-                    "loc": ["query", "status"],
-                    "msg": f"Not a valid status value. Must be one of: {', '.join([s.value for s in ProductStatuses])}",
-                    "type": "value_error.enum"
-                }]
-            )
+        # Convert status_param to request object with enum value
+        request = FilterProductsByStatusRequest(status=ProductStatuses(status_param))
         
-        # Create the request with the status
-        response = use_case(FilterProductsByStatusRequest(status=status_param))
+        # Call use case with the request object
+        response = use_case(request)
         
         # Convert the response to FilterProductByStatusResponseDto
         return FilterProductByStatusResponseDto(
             products=[
                 ProductBase(
-                    product_id=product.product_id,
+                    product_id=str(product.product_id),
                     user_id=product.user_id,
                     name=product.name,
                     description=product.description,
                     price=product.price,
                     location=product.location,
-                    status=product.status,
+                    status=product.status.value,
                     is_available=product.is_available
                 )
                 for product in response.products
@@ -102,20 +108,20 @@ async def filter_product_by_status(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=[{
-                "loc": ["query", "status"],
-                "msg": str(e),
-                "type": "value_error"
-            }]
+            detail="Invalid status"
         )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logging.error(f"Error filtering products: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 
 @product_router.get("/{product_id}", response_model=FindProductByIdResponseDto)
 async def get_product_by_id(
     product_id: str, use_case: FindProductById = Depends(find_product_by_id_use_case)
-) -> FindProductByIdResponse:
+) -> FindProductByIdResponseDto:
     response = use_case(FindProductByIdRequest(product_id=product_id))
     response_dto: FindProductByIdResponseDto = FindProductByIdResponseDto(
         **response._asdict()
@@ -199,19 +205,21 @@ async def create_product(
         )
 
 
-# Isadora's code starts here.
-
-#ROUTE TO DELETE
-@product_router.delete("/{product_id}", response_model=DeleteProductResponse)
+@product_router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: str,
     use_case: DeleteProduct = Depends(delete_product_use_case)
-) -> DeleteProductResponse:
+):
     logging.info(f"Deleting product with ID {product_id}")
     try:
-        response = use_case(DeleteProductRequest(product_id=product_id))
-        logging.info(f"Product deleted: {response}")
-        return response
+        # Create the request object
+        request = DeleteProductRequest(product_id=product_id)
+        # Call use case
+        use_case(request)
+        return None
+    except ValueError as e:
+        logging.error(f"Validation error: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except ProductNotFoundException as e:
         logging.error(f"Product not found: {str(e)}")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -221,10 +229,7 @@ async def delete_product(
     except Exception as e:
         logging.error(f"Error deleting product: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-    
 
-
-#Route to Update
 
 @product_router.put("/{product_id}", response_model=UpdateProductResponseDto)
 async def update_product(
@@ -261,3 +266,9 @@ async def update_product(
         )
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+
+@product_router.get("/status")
+async def get_status():
+    """Health check endpoint for AWS."""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
