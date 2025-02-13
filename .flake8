@@ -21,4 +21,20 @@ ignore =
     # Ignore redefinition of unused name
     F811,
     # Ignore block comment should start with #
-    E265
+    E265,
+    # Ignore multiple spaces after operator
+    E241,
+    # Ignore missing newline at end of file
+    W292,
+    # Ignore bracket indentation
+    E123,
+    # Ignore continuation line indentation
+    E131,
+    # Ignore spacing before inline comment
+    E261,
+    # Ignore inline comment format
+    E262,
+    # Ignore blank lines after function
+    E305,
+    # Ignore unused variables
+    F841

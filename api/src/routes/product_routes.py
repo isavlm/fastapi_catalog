@@ -1,27 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.exceptions import HTTPException
+from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List, Optional
+import logging
+
+from api.src.dtos import (
+    CreateProductRequestDto,
+    UpdateProductRequestDto,
+    DeleteProductRequestDto,
+    DeleteProductResponse,
+    FilterProductsByStatusRequestDto,
+    ListProductResponseDto,
+    CreateProductResponseDto,
+    FindProductByIdResponseDto,
+    UpdateProductResponseDto,
+    FilterProductByStatusResponseDto,
+    ProductBase
+)
 
 from app.src.use_cases.product import (
-    ListProducts,
     ListProductResponse,
-    FindProductById,
     FindProductByIdResponse,
-    FindProductByIdRequest,
-    CreateProduct,
     CreateProductResponse,
-    CreateProductRequest,
-    DeleteProductRequest,
-    DeleteProductResponse,
-    DeleteProduct,
-    UpdateProductRequest,
     UpdateProductResponse,
+    FilterProductsByStatusResponse,
+    FilterProductsByStatusRequest,
+    ListProducts,
+    FindProductById,
+    CreateProduct,
+    DeleteProduct,
     UpdateProduct,
     FilterProductByStatus,
+    DeleteProductResponse,
+    FindProductByIdRequest,
+    CreateProductRequest,
+    DeleteProductRequest,
+    UpdateProductRequest,
     FilterProductsByStatusRequest,
-    FilterProductsByStatusResponse
 )
+
 from app.src.core.enums._product_statuses import ProductStatuses
+from app.src.core.models import Product
 from app.src.exceptions import ProductNotFoundException, ProductRepositoryException
 from factories.use_cases.product import (
     get_product_repository,
@@ -32,19 +49,11 @@ from factories.use_cases.product import (
     update_product_use_case,
     filter_product_use_case
 )
-from ..dtos import (
-    ProductBase,
-    ListProductResponseDto,
-    CreateProductRequestDto,
-    CreateProductResponseDto,
-    FindProductByIdResponseDto,
-    DeleteProductResponse,
-    UpdateProductRequestDto,
-    UpdateProductResponseDto,
-    FilterProductByStatusResponseDto,
-    FilterProductsByStatusRequestDto
-)
 from datetime import datetime
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 product_router = APIRouter(prefix="/products")
 
