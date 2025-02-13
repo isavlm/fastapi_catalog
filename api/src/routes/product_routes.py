@@ -1,6 +1,7 @@
-import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.exceptions import HTTPException
+from typing import List, Optional
+
 from app.src.use_cases.product import (
     ListProducts,
     ListProductResponse,
@@ -22,7 +23,15 @@ from app.src.use_cases.product import (
 )
 from app.src.core.enums._product_statuses import ProductStatuses
 from app.src.exceptions import ProductNotFoundException, ProductRepositoryException
-from factories.use_cases.product import get_product_repository
+from factories.use_cases.product import (
+    get_product_repository,
+    list_product_use_case,
+    find_product_by_id_use_case,
+    create_product_use_case,
+    delete_product_use_case,
+    update_product_use_case,
+    filter_product_use_case
+)
 from ..dtos import (
     ProductBase,
     ListProductResponseDto,
@@ -34,14 +43,6 @@ from ..dtos import (
     UpdateProductResponseDto,
     FilterProductByStatusResponseDto,
     FilterProductsByStatusRequestDto
-)
-from factories.use_cases import (
-    list_product_use_case,
-    find_product_by_id_use_case,
-    create_product_use_case,
-    delete_product_use_case,
-    update_product_use_case,
-    filter_product_use_case
 )
 from datetime import datetime
 
@@ -67,7 +68,6 @@ async def get_products(
     )
 
 
-#Route to filter by status
 @product_router.get("/filter-by-status", response_model=FilterProductByStatusResponseDto)
 async def filter_product_by_status(
     status_param: str,
@@ -196,9 +196,6 @@ async def create_product(
         )
 
 
-# Isadora's code starts here.
-
-#ROUTE TO DELETE
 @product_router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: str,
@@ -224,8 +221,6 @@ async def delete_product(
         logging.error(f"Error deleting product: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-
-#Route to Update
 
 @product_router.put("/{product_id}", response_model=UpdateProductResponseDto)
 async def update_product(
