@@ -1,6 +1,6 @@
 from typing import List
 from decimal import Decimal
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from app.src.core.enums._product_statuses import ProductStatuses
 
 """After the issue with the update method,I added a validator to check if the product_id only accepts numbers.
@@ -21,17 +21,21 @@ class ProductBase(BaseModel):
 # Adding validator to check if the product_id only accepts numbers and to check if the status is in lowercase or uppercase. 
 
 
-    @validator('product_id')
+    @field_validator('product_id')
     def validate_product_id(cls, v):
         if not v.isdigit():
             raise ValueError("product_id should be numbers only")
         return v
 
-    @validator('status')
+    @field_validator('status')
     def validate_status(cls, v):
         if v.lower() not in [s.value.lower() for s in ProductStatuses]:
             raise ValueError(f"status must be one of: {', '.join([s.value for s in ProductStatuses])}")
-        return v.title()  # Normalize status to title case
+        # Return the exact enum value instead of title case
+        for status in ProductStatuses:
+            if v.lower() == status.value.lower():
+                return status.value
+        return v
 
 
 class ListProductResponseDto(BaseModel):
@@ -54,11 +58,21 @@ class DeleteProductResponse(BaseModel):
     ...
 
 
+class DeleteProductRequestDto(BaseModel):
+    product_id: str
+
+    @field_validator('product_id')
+    def validate_product_id(cls, v):
+        if not v.isdigit():
+            raise ValueError("product_id should be numbers only")
+        return v
+
+
 class UpdateProductResponseDto(ProductBase):
     ...
 
 class UpdateProductRequestDto(ProductBase):
-    @validator('product_id')
+    @field_validator('product_id')
     def validate_product_id(cls, v):
         if not v.isdigit():
             raise ValueError("product_id should be numbers only")
@@ -67,7 +81,7 @@ class UpdateProductRequestDto(ProductBase):
 class FilterProductsByStatusRequestDto(BaseModel):
     status: str
 
-    @validator('status')
+    @field_validator('status')
     def validate_status(cls, v):
         try:
             status_value = next(

@@ -1,4 +1,7 @@
 class RepositoryException(Exception):
-    def __init__(self, entity_type: str, method: str):
-        message = f"Exception while executing {method} in {entity_type}"
-        super().__init__(message)
+    def __init__(self, entity_type: str, method: str, message: str = None):
+        if message:
+            super_message = f"Exception while executing {method} in {entity_type}: {message}"
+        else:
+            super_message = f"Exception while executing {method} in {entity_type}"
+        super().__init__(super_message)
