@@ -10,11 +10,27 @@ env:
   AWS_REGION: us-west-2
   EC2_HOST: 52.39.46.176
   EC2_USERNAME: ec2-user
+  DATABASE_URL: postgresql://root:toor@localhost:5432/ioet_catalog_db
 
 jobs:
   lint-and-test:
     name: Lint and Test
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: toor
+          POSTGRES_DB: ioet_catalog_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     
     steps:
     - name: Checkout code
@@ -29,16 +45,16 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest flake8 pytest-cov
+        pip install poetry
+        poetry install
 
     - name: Run linting
       run: |
-        flake8 .
+        poetry run flake8 .
 
-    - name: Run tests with coverage
+    - name: Run tests
       run: |
-        pytest --cov=./ --cov-report=xml
+        poetry run pytest -v
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
