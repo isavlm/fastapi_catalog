@@ -83,30 +83,36 @@ jobs:
         echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2.pem
         chmod 600 ~/.ssh/ec2.pem
         echo -e "Host ec2\n\tHostName ${{ env.EC2_HOST }}\n\tUser ${{ env.EC2_USERNAME }}\n\tIdentityFile ~/.ssh/ec2.pem\n\tStrictHostKeyChecking no" > ~/.ssh/config
+        # Debug SSH config
+        echo "Testing SSH connection..."
+        ssh -v ec2 'echo "SSH connection successful"'
 
     - name: Deploy to EC2
       run: |
-        # Stop the existing service
+        set -x  # Enable debug mode
+        echo "Stopping service..."
         ssh ec2 'sudo systemctl stop fastapi-catalog || true'
         
-        # Backup current version
+        echo "Backing up old version..."
         ssh ec2 'if [ -d ~/Backend-Master-Challenge ]; then mv ~/Backend-Master-Challenge ~/Backend-Master-Challenge-$(date +%Y%m%d_%H%M%S); fi'
         
-        # Copy new files
+        echo "Copying new files..."
         scp -r ./ ec2:~/Backend-Master-Challenge/
         
-        # Install Poetry and dependencies
-        ssh ec2 'curl -sSL https://install.python-poetry.org | python3 - --version ${{ env.POETRY_VERSION }} && cd ~/Backend-Master-Challenge && poetry config virtualenvs.create false && poetry install --no-interaction'
+        echo "Installing Poetry and dependencies..."
+        ssh ec2 'command -v poetry || curl -sSL https://install.python-poetry.org | python3 - --version ${{ env.POETRY_VERSION }}'
+        ssh ec2 'cd ~/Backend-Master-Challenge && poetry config virtualenvs.create false && poetry install --no-interaction'
         
-        # Start the service
+        echo "Starting service..."
         ssh ec2 'sudo systemctl start fastapi-catalog'
         
-        # Verify deployment
+        echo "Verifying service status..."
+        ssh ec2 'sudo systemctl status fastapi-catalog'
         ssh ec2 'sudo systemctl is-active fastapi-catalog --quiet || (echo "Service failed to start" && exit 1)'
 
     - name: Health Check
       run: |
-        # Wait for service to be fully up
+        echo "Waiting for service to be fully up..."
         sleep 5
-        # Check health endpoint
-        curl --fail http://${{ env.EC2_HOST }}:8000/health_check/ || (echo "Health check failed" && exit 1)
+        echo "Checking health endpoint..."
+        curl -v http://${{ env.EC2_HOST }}:8000/health_check/ || (echo "Health check failed" && exit 1)
