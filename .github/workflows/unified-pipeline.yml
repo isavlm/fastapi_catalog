@@ -32,9 +32,17 @@ jobs:
         echo "$EC2_SSH_KEY" > ~/.ssh/key.pem
         chmod 600 ~/.ssh/key.pem
         
-        # Create deployment directory and copy files
-        ssh -i ~/.ssh/key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} "mkdir -p ~/Backend-Master-Challenge"
-        scp -i ~/.ssh/key.pem -o StrictHostKeyChecking=no -r ./* ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }}:~/Backend-Master-Challenge/
+        # Create temp directory and copy files
+        ssh -i ~/.ssh/key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} "mkdir -p ~/temp-deploy"
+        scp -i ~/.ssh/key.pem -o StrictHostKeyChecking=no -r ./* ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }}:~/temp-deploy/
         
-        # Install dependencies and restart service
-        ssh -i ~/.ssh/key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} "cd ~/Backend-Master-Challenge && curl -sSL https://install.python-poetry.org | python3 - && poetry install --no-interaction && sudo systemctl restart fastapi-catalog"
+        # Install dependencies and move files to correct location
+        ssh -i ~/.ssh/key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} "cd ~/temp-deploy && \
+          curl -sSL https://install.python-poetry.org | python3 - && \
+          poetry install --no-interaction && \
+          sudo systemctl stop fastapi-catalog && \
+          sudo rm -rf /opt/fastapi-catalog/* && \
+          sudo cp -r ./* /opt/fastapi-catalog/ && \
+          sudo chown -R ec2-user:ec2-user /opt/fastapi-catalog && \
+          sudo systemctl start fastapi-catalog && \
+          rm -rf ~/temp-deploy"
