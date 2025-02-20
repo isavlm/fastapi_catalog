@@ -58,7 +58,7 @@ class DeleteProductResponse(BaseModel):
     ...
 
 
-class DeleteProductRequest(BaseModel):
+class DeleteProductRequestDto(BaseModel):
     product_id: str
 
     @field_validator('product_id')

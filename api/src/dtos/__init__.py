@@ -7,8 +7,7 @@ from .product import (
     UpdateProductRequestDto,
     UpdateProductResponseDto,
     DeleteProductResponse,
+    DeleteProductRequestDto,
     FilterProductByStatusResponseDto,
     FilterProductsByStatusRequestDto,
-
-
 )
