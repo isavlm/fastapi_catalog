@@ -38,11 +38,16 @@ jobs:
         
         # Install dependencies and move files to correct location
         ssh -i ~/.ssh/key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} "cd ~/temp-deploy && \
-          curl -sSL https://install.python-poetry.org | python3 - && \
+          export PATH=/usr/local/bin:\$PATH && \
+          curl -sSL https://install.python-poetry.org | python3.11 - && \
+          export PATH=/home/ec2-user/.local/bin:\$PATH && \
+          poetry env use python3.11 && \
           poetry install --no-interaction && \
           sudo systemctl stop fastapi-catalog && \
+          sudo mkdir -p /opt/fastapi-catalog && \
           sudo rm -rf /opt/fastapi-catalog/* && \
           sudo cp -r ./* /opt/fastapi-catalog/ && \
           sudo chown -R ec2-user:ec2-user /opt/fastapi-catalog && \
+          sudo chmod -R 755 /opt/fastapi-catalog && \
           sudo systemctl start fastapi-catalog && \
           rm -rf ~/temp-deploy"
