@@ -82,12 +82,29 @@ jobs:
         mkdir -p ~/.ssh/
         echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2.pem
         chmod 600 ~/.ssh/ec2.pem
+        cat ~/.ssh/ec2.pem | wc -l
+        ls -la ~/.ssh/ec2.pem
         echo -e "Host ec2\n\tHostName ${{ env.EC2_HOST }}\n\tUser ${{ env.EC2_USERNAME }}\n\tIdentityFile ~/.ssh/ec2.pem\n\tStrictHostKeyChecking no" > ~/.ssh/config
-        # Debug SSH config
-        echo "Testing SSH connection..."
-        ssh -v ec2 'echo "SSH connection successful"'
+        cat ~/.ssh/config
+        
+        # Test SSH connection with maximum verbosity
+        echo "Testing SSH connection with debug info..."
+        ssh -vvv ec2 'whoami && pwd'
+
+    - name: Basic Deployment Test
+      run: |
+        echo "Current working directory:"
+        pwd
+        ls -la
+        
+        echo "Testing basic SSH commands..."
+        ssh -i ~/.ssh/ec2.pem ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} 'echo "Connection successful"'
+        
+        echo "Testing with configured host..."
+        ssh ec2 'echo "Connection successful via configured host"'
 
     - name: Deploy to EC2
+      if: false  # Temporarily disable full deployment
       run: |
         set -x  # Enable debug mode
         echo "Stopping service..."
