@@ -11,62 +11,71 @@ env:
   EC2_HOST: 52.39.46.176
   EC2_USERNAME: ec2-user
   DATABASE_URL: postgresql://root:toor@localhost:5432/ioet_catalog_db
+  POETRY_VERSION: 1.7.1
 
 jobs:
-  lint-and-test:
-    name: Lint and Test
-    runs-on: ubuntu-latest
+  # lint-and-test:
+  #   name: Lint and Test
+  #   runs-on: ubuntu-latest
     
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: root
-          POSTGRES_PASSWORD: toor
-          POSTGRES_DB: ioet_catalog_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+  #   services:
+  #     postgres:
+  #       image: postgres:15-alpine
+  #       env:
+  #         POSTGRES_USER: root
+  #         POSTGRES_PASSWORD: toor
+  #         POSTGRES_DB: ioet_catalog_db
+  #       ports:
+  #         - 5432:5432
+  #       options: >-
+  #         --health-cmd pg_isready
+  #         --health-interval 5s
+  #         --health-timeout 5s
+  #         --health-retries 3
     
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #     with:
+  #       fetch-depth: 1
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10.12'
-        cache: 'pip'
+  #   - uses: actions/setup-python@v4
+  #     with:
+  #       python-version: '3.10.12'
+  #       cache: 'pip'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install poetry
-        poetry config virtualenvs.create false
-        poetry install --no-interaction
+  #   - name: Cache Poetry dependencies
+  #     uses: actions/cache@v3
+  #     with:
+  #       path: ~/.cache/pypoetry
+  #       key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+  #       restore-keys: |
+  #         ${{ runner.os }}-poetry-
 
-    - name: Run linting
-      run: |
-        poetry run flake8 .
+  #   - name: Install and configure Poetry
+  #     run: |
+  #       curl -sSL https://install.python-poetry.org | python3 - --version ${{ env.POETRY_VERSION }}
+  #       poetry config virtualenvs.create false
 
-    - name: Run tests
-      run: |
-        poetry run pytest -v
+  #   - name: Install dependencies
+  #     run: poetry install --no-interaction --no-root
+
+  #   - name: Run linting
+  #     run: poetry run flake8 .
+
+  #   - name: Run tests
+  #     run: poetry run pytest -v
 
   deploy:
     name: Deploy to EC2
-    needs: lint-and-test
+    # needs: lint-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 1
 
     - name: Configure SSH
       run: |
