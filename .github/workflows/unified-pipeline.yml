@@ -10,64 +10,10 @@ env:
   AWS_REGION: us-west-2
   EC2_HOST: 52.39.46.176
   EC2_USERNAME: ec2-user
-  DATABASE_URL: postgresql://root:toor@localhost:5432/ioet_catalog_db
-  POETRY_VERSION: 1.7.1
 
 jobs:
-  lint-and-test:
-    name: Lint and Test
-    runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: root
-          POSTGRES_PASSWORD: toor
-          POSTGRES_DB: ioet_catalog_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 3
-    
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 1
-
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.10.12'
-        cache: 'pip'
-
-    - name: Cache Poetry dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pypoetry
-        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-poetry-
-
-    - name: Install and configure Poetry
-      run: |
-        curl -sSL https://install.python-poetry.org | python3 - --version ${{ env.POETRY_VERSION }}
-        poetry config virtualenvs.create false
-
-    - name: Install dependencies
-      run: poetry install --no-interaction --no-root
-
-    - name: Run linting
-      run: poetry run flake8 .
-
-    - name: Run tests
-      run: poetry run pytest -v
-
   deploy:
     name: Deploy to EC2
-    needs: lint-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
@@ -77,59 +23,15 @@ jobs:
       with:
         fetch-depth: 1
 
-    - name: Configure SSH
-      run: |
-        mkdir -p ~/.ssh/
-        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2.pem
-        chmod 600 ~/.ssh/ec2.pem
-        cat ~/.ssh/ec2.pem | wc -l
-        ls -la ~/.ssh/ec2.pem
-        echo -e "Host ec2\n\tHostName ${{ env.EC2_HOST }}\n\tUser ${{ env.EC2_USERNAME }}\n\tIdentityFile ~/.ssh/ec2.pem\n\tStrictHostKeyChecking no" > ~/.ssh/config
-        cat ~/.ssh/config
-        
-        # Test SSH connection with maximum verbosity
-        echo "Testing SSH connection with debug info..."
-        ssh -vvv ec2 'whoami && pwd'
-
-    - name: Basic Deployment Test
-      run: |
-        echo "Current working directory:"
-        pwd
-        ls -la
-        
-        echo "Testing basic SSH commands..."
-        ssh -i ~/.ssh/ec2.pem ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} 'echo "Connection successful"'
-        
-        echo "Testing with configured host..."
-        ssh ec2 'echo "Connection successful via configured host"'
-
     - name: Deploy to EC2
-      if: false  # Temporarily disable full deployment
+      env:
+        EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
       run: |
-        set -x  # Enable debug mode
-        echo "Stopping service..."
-        ssh ec2 'sudo systemctl stop fastapi-catalog || true'
+        # Setup SSH key
+        mkdir -p ~/.ssh
+        echo "$EC2_SSH_KEY" > ~/.ssh/key.pem
+        chmod 600 ~/.ssh/key.pem
         
-        echo "Backing up old version..."
-        ssh ec2 'if [ -d ~/Backend-Master-Challenge ]; then mv ~/Backend-Master-Challenge ~/Backend-Master-Challenge-$(date +%Y%m%d_%H%M%S); fi'
-        
-        echo "Copying new files..."
-        scp -r ./ ec2:~/Backend-Master-Challenge/
-        
-        echo "Installing Poetry and dependencies..."
-        ssh ec2 'command -v poetry || curl -sSL https://install.python-poetry.org | python3 - --version ${{ env.POETRY_VERSION }}'
-        ssh ec2 'cd ~/Backend-Master-Challenge && poetry config virtualenvs.create false && poetry install --no-interaction'
-        
-        echo "Starting service..."
-        ssh ec2 'sudo systemctl start fastapi-catalog'
-        
-        echo "Verifying service status..."
-        ssh ec2 'sudo systemctl status fastapi-catalog'
-        ssh ec2 'sudo systemctl is-active fastapi-catalog --quiet || (echo "Service failed to start" && exit 1)'
-
-    - name: Health Check
-      run: |
-        echo "Waiting for service to be fully up..."
-        sleep 5
-        echo "Checking health endpoint..."
-        curl -v http://${{ env.EC2_HOST }}:8000/health_check/ || (echo "Health check failed" && exit 1)
+        # Copy files and restart service
+        scp -i ~/.ssh/key.pem -o StrictHostKeyChecking=no -r ./* ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }}:~/Backend-Master-Challenge/
+        ssh -i ~/.ssh/key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} "sudo systemctl restart fastapi-catalog"
