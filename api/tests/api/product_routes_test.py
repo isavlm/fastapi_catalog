@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from fastapi import status
 
 from app.src.core.models._product import Product, ProductStatuses
-from api.src.dtos.product import DeleteProductRequest
+from api.src.dtos.product import DeleteProductRequestDto
 from app.src.use_cases.product.get_by_status.request import FilterProductsByStatusRequest
 from factories.use_cases.product import (
     list_product_use_case,
