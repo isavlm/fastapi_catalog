@@ -1,0 +1,75 @@
+name: Deploy to DigitalOcean
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: catalog_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Install Dependencies
+      run: poetry install
+
+    - name: Run Tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalog_test
+      run: |
+        poetry run pytest
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+    
+    - name: Log in to DO Container Registry
+      run: doctl registry login --expiry-seconds 600
+    
+    - name: Build and push
+      env:
+        IMAGE_NAME: ${{ secrets.DIGITALOCEAN_REGISTRY }}/api
+      run: |
+        docker build -t $(echo $IMAGE_NAME):$(echo $GITHUB_SHA | head -c7) \
+                    -t $(echo $IMAGE_NAME):latest .
+        docker push $(echo $IMAGE_NAME):$(echo $GITHUB_SHA | head -c7)
+        docker push $(echo $IMAGE_NAME):latest
+    
+    - name: Deploy to DO App Platform
+      run: |
+        doctl apps create-deployment ${{ secrets.DIGITALOCEAN_APP_ID }}
