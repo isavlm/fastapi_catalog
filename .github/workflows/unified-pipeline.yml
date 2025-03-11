@@ -1,0 +1,53 @@
+name: FastAPI Catalog CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AWS_REGION: us-west-2
+  EC2_HOST: 52.39.46.176
+  EC2_USERNAME: ec2-user
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 1
+
+    - name: Deploy to EC2
+      env:
+        EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      run: |
+        # Setup SSH key
+        mkdir -p ~/.ssh
+        echo "$EC2_SSH_KEY" > ~/.ssh/key.pem
+        chmod 600 ~/.ssh/key.pem
+        
+        # Create temp directory and copy files
+        ssh -i ~/.ssh/key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} "mkdir -p ~/temp-deploy"
+        scp -i ~/.ssh/key.pem -o StrictHostKeyChecking=no -r ./* ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }}:~/temp-deploy/
+        
+        # Install dependencies and move files to correct location
+        ssh -i ~/.ssh/key.pem -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} "cd ~/temp-deploy && \
+          export PATH=/usr/local/bin:\$PATH && \
+          curl -sSL https://install.python-poetry.org | python3.11 - && \
+          export PATH=/home/ec2-user/.local/bin:\$PATH && \
+          poetry env use python3.11 && \
+          poetry install --no-interaction && \
+          sudo systemctl stop fastapi-catalog && \
+          sudo mkdir -p /opt/fastapi-catalog && \
+          sudo rm -rf /opt/fastapi-catalog/* && \
+          sudo cp -r ./* /opt/fastapi-catalog/ && \
+          sudo chown -R ec2-user:ec2-user /opt/fastapi-catalog && \
+          sudo chmod -R 755 /opt/fastapi-catalog && \
+          sudo systemctl start fastapi-catalog && \
+          rm -rf ~/temp-deploy"

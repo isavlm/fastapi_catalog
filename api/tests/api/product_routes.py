@@ -1,46 +1,41 @@
-from fastapi import APIRouter, HTTPException, Depends, status
-from typing import List, Optional
 import logging
-
-from api.src.dtos import (
-    CreateProductRequestDto,
-    UpdateProductRequestDto,
-    DeleteProductRequestDto,
-    DeleteProductResponse,
-    FilterProductsByStatusRequestDto,
-    ListProductResponseDto,
-    CreateProductResponseDto,
-    FindProductByIdResponseDto,
-    UpdateProductResponseDto,
-    FilterProductByStatusResponseDto,
-    ProductBase
-)
-
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.exceptions import HTTPException
 from app.src.use_cases.product import (
-    ListProductResponse,
-    FindProductByIdResponse,
-    CreateProductResponse,
-    UpdateProductResponse,
-    FilterProductsByStatusResponse,
     ListProducts,
+    ListProductResponse,
     FindProductById,
-    CreateProduct,
-    DeleteProduct,
-    UpdateProduct,
-    FilterProductByStatus,
-    DeleteProductResponse,
+    FindProductByIdResponse,
     FindProductByIdRequest,
+    CreateProduct,
+    CreateProductResponse,
     CreateProductRequest,
     DeleteProductRequest,
+    DeleteProductResponse,
+    DeleteProduct,
     UpdateProductRequest,
+    UpdateProductResponse,
+    UpdateProduct,
+    FilterProductByStatus,
     FilterProductsByStatusRequest,
+    FilterProductsByStatusResponse
 )
-
 from app.src.core.enums._product_statuses import ProductStatuses
-from app.src.core.models import Product
 from app.src.exceptions import ProductNotFoundException, ProductRepositoryException
-from factories.use_cases.product import (
-    get_product_repository,
+from factories.use_cases.product import get_product_repository
+from ..dtos import (
+    ProductBase,
+    ListProductResponseDto,
+    CreateProductRequestDto,
+    CreateProductResponseDto,
+    FindProductByIdResponseDto,
+    DeleteProductResponse,
+    UpdateProductRequestDto,
+    UpdateProductResponseDto,
+    FilterProductByStatusResponseDto,
+    FilterProductsByStatusRequestDto
+)
+from factories.use_cases import (
     list_product_use_case,
     find_product_by_id_use_case,
     create_product_use_case,
@@ -48,35 +43,11 @@ from factories.use_cases.product import (
     update_product_use_case,
     filter_product_use_case
 )
-from datetime import datetime
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-product_router = APIRouter(
-    prefix="/products",
-    tags=["products"],
-    responses={404: {"description": "Product not found"}}
-)
+product_router = APIRouter(prefix="/products")
 
 
-@product_router.get(
-    "/",
-    response_model=ListProductResponseDto,
-    summary="List All Products",
-    description="""
-    Retrieve a list of all products in the catalog.
-    
-    Returns:
-    - A list of products with their details including ID, name, price, status, and availability
-    - An empty list if no products are found
-    
-    Optional Query Parameters:
-    - location: Filter by store location
-    - is_available: Filter by availability status (true/false)
-    """
-)
+@product_router.get("/", response_model=ListProductResponseDto)
 async def get_products(
     use_case: ListProducts = Depends(list_product_use_case),
 ) -> ListProductResponseDto:
@@ -95,38 +66,15 @@ async def get_products(
     )
 
 
-@product_router.get(
-    "/filter-by-status",
-    response_model=FilterProductByStatusResponseDto,
-    summary="Filter Products by Status",
-    description="""
-    Filter products by their status (New, Used, or For parts).
-    
-    Parameters:
-    - status_param: The status to filter by (New, Used, For parts)
-    
-    Returns:
-    - A list of products matching the specified status
-    - An empty list if no products match the status
-    
-    Example:
-    ```
-    GET /products/filter-by-status?status_param=New
-    GET /products/filter-by-status?status_param=Used
-    GET /products/filter-by-status?status_param=For parts
-    ```
-    """
-)
+#Route to filter by status
+@product_router.get("/filter-by-status", response_model=FilterProductByStatusResponseDto)
 async def filter_product_by_status(
     status_param: str,
     use_case: FilterProductByStatus = Depends(filter_product_use_case)
 ) -> FilterProductByStatusResponseDto:
     try:
-        # Convert status_param to request object with enum value
-        request = FilterProductsByStatusRequest(status=ProductStatuses(status_param))
-        
-        # Call use case with the request object
-        response = use_case(request)
+        # Call use case with just the status string
+        response = use_case(status_param)
         
         # Convert the response to FilterProductByStatusResponseDto
         return FilterProductByStatusResponseDto(
@@ -157,21 +105,7 @@ async def filter_product_by_status(
         )
 
 
-@product_router.get(
-    "/{product_id}",
-    response_model=FindProductByIdResponseDto,
-    summary="Get Product by ID",
-    description="""
-    Retrieve a product by its ID.
-    
-    Parameters:
-    - product_id: The ID of the product to retrieve
-    
-    Returns:
-    - The product with its details including ID, name, price, status, and availability
-    - 404 Not Found if the product is not found
-    """
-)
+@product_router.get("/{product_id}", response_model=FindProductByIdResponseDto)
 async def get_product_by_id(
     product_id: str, use_case: FindProductById = Depends(find_product_by_id_use_case)
 ) -> FindProductByIdResponseDto:
@@ -182,30 +116,7 @@ async def get_product_by_id(
     return response_dto
 
 
-@product_router.post(
-    "/",
-    response_model=CreateProductResponseDto,
-    status_code=status.HTTP_201_CREATED,
-    summary="Create a New Product",
-    description="""
-    Create a new product in the catalog.
-    
-    Parameters:
-    - product_id: The ID of the product to create
-    - user_id: The ID of the user creating the product
-    - name: The name of the product
-    - description: The description of the product
-    - price: The price of the product
-    - location: The location of the product
-    - status: The status of the product (New, Used, or For parts)
-    - is_available: The availability status of the product (true/false)
-    
-    Returns:
-    - The created product with its details including ID, name, price, status, and availability
-    - 422 Unprocessable Entity if the request is invalid
-    - 500 Internal Server Error if an unexpected error occurs
-    """
-)
+@product_router.post("/", response_model=CreateProductResponseDto, status_code=status.HTTP_201_CREATED)
 async def create_product(
     request: CreateProductRequestDto,
     use_case: CreateProduct = Depends(create_product_use_case),
@@ -281,22 +192,10 @@ async def create_product(
         )
 
 
-@product_router.delete(
-    "/{product_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a Product",
-    description="""
-    Delete a product by its ID.
-    
-    Parameters:
-    - product_id: The ID of the product to delete
-    
-    Returns:
-    - 204 No Content if the product is deleted successfully
-    - 404 Not Found if the product is not found
-    - 500 Internal Server Error if an unexpected error occurs
-    """
-)
+# Isadora's code starts here.
+
+#ROUTE TO DELETE
+@product_router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: str,
     use_case: DeleteProduct = Depends(delete_product_use_case)
@@ -322,29 +221,9 @@ async def delete_product(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@product_router.put(
-    "/{product_id}",
-    response_model=UpdateProductResponseDto,
-    summary="Update a Product",
-    description="""
-    Update a product by its ID.
-    
-    Parameters:
-    - product_id: The ID of the product to update
-    - user_id: The ID of the user updating the product
-    - name: The new name of the product
-    - description: The new description of the product
-    - price: The new price of the product
-    - location: The new location of the product
-    - status: The new status of the product (New, Used, or For parts)
-    - is_available: The new availability status of the product (true/false)
-    
-    Returns:
-    - The updated product with its details including ID, name, price, status, and availability
-    - 404 Not Found if the product is not found
-    - 500 Internal Server Error if an unexpected error occurs
-    """
-)
+#Route to Update
+
+@product_router.put("/{product_id}", response_model=UpdateProductResponseDto)
 async def update_product(
     product_id: str, 
     request: UpdateProductRequestDto,
@@ -379,18 +258,3 @@ async def update_product(
         )
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-
-
-@product_router.get(
-    "/status",
-    summary="Health Check",
-    description="""
-    Health check endpoint for AWS.
-    
-    Returns:
-    - A JSON object with the status and timestamp
-    """
-)
-async def get_status():
-    """Health check endpoint for AWS."""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
