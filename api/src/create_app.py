@@ -40,7 +40,44 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Catalog API", lifespan=lifespan)
+    app = FastAPI(
+        title="Catalog API",
+        description="""
+        # Catalog API Documentation
+
+        Welcome to the Catalog API! This API is part of the CCPathways Apprenticeship Program (https://ccpathways.org/) Level 2. It was written on Python, deployed using CICD on DigitalOcean.
+
+        * **Products Management**: Create, read, update, and delete products
+        * **Status Filtering**: Filter products by their status (New, Used, For parts)
+        * **Location Search**: Find products by store location
+        * **Availability Check**: Filter products by availability
+
+        ## Getting Started
+
+        To start using the API, you can:
+        1. Browse the available endpoints below
+        2. Try out the endpoints using the interactive Swagger UI
+        3. Use the ReDoc interface for a more readable documentation
+
+        ## Authentication
+
+        Currently, the API is open for testing. Authentication will be implemented in future versions.
+
+        ## Rate Limiting
+
+        Please note that there are rate limits in place to ensure fair usage:
+        * 100 requests per minute per IP address
+
+        ## Need Help?
+
+        For any questions or support, please contact me at ivlm@pm.me""",
+        version="1.0.0",
+        license_info={
+            "name": "Apache 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+        },
+        lifespan=lifespan
+    )
 
     # Add CORS middleware
     app.add_middleware(

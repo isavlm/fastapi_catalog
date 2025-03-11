@@ -1,5 +1,5 @@
 # Base image
-FROM python:3.10-slim-bullseye AS base_image
+FROM --platform=linux/amd64 python:3.10-slim-bullseye AS base_image
 
 RUN apt-get update && \
   apt-get install -y \
@@ -28,4 +28,4 @@ RUN poetry install --no-root
 ENV PORT=8000
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

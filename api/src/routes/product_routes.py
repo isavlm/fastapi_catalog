@@ -22,7 +22,6 @@ from app.src.use_cases.product import (
     CreateProductResponse,
     UpdateProductResponse,
     FilterProductsByStatusResponse,
-    FilterProductsByStatusRequest,
     ListProducts,
     FindProductById,
     CreateProduct,
@@ -55,10 +54,29 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-product_router = APIRouter(prefix="/products")
+product_router = APIRouter(
+    prefix="/products",
+    tags=["products"],
+    responses={404: {"description": "Product not found"}}
+)
 
 
-@product_router.get("/", response_model=ListProductResponseDto)
+@product_router.get(
+    "/",
+    response_model=ListProductResponseDto,
+    summary="List All Products",
+    description="""
+    Retrieve a list of all products in the catalog.
+    
+    Returns:
+    - A list of products with their details including ID, name, price, status, and availability
+    - An empty list if no products are found
+    
+    Optional Query Parameters:
+    - location: Filter by store location
+    - is_available: Filter by availability status (true/false)
+    """
+)
 async def get_products(
     use_case: ListProducts = Depends(list_product_use_case),
 ) -> ListProductResponseDto:
@@ -77,7 +95,28 @@ async def get_products(
     )
 
 
-@product_router.get("/filter-by-status", response_model=FilterProductByStatusResponseDto)
+@product_router.get(
+    "/filter-by-status",
+    response_model=FilterProductByStatusResponseDto,
+    summary="Filter Products by Status",
+    description="""
+    Filter products by their status (New, Used, or For parts).
+    
+    Parameters:
+    - status_param: The status to filter by (New, Used, For parts)
+    
+    Returns:
+    - A list of products matching the specified status
+    - An empty list if no products match the status
+    
+    Example:
+    ```
+    GET /products/filter-by-status?status_param=New
+    GET /products/filter-by-status?status_param=Used
+    GET /products/filter-by-status?status_param=For parts
+    ```
+    """
+)
 async def filter_product_by_status(
     status_param: str,
     use_case: FilterProductByStatus = Depends(filter_product_use_case)
@@ -118,7 +157,21 @@ async def filter_product_by_status(
         )
 
 
-@product_router.get("/{product_id}", response_model=FindProductByIdResponseDto)
+@product_router.get(
+    "/{product_id}",
+    response_model=FindProductByIdResponseDto,
+    summary="Get Product by ID",
+    description="""
+    Retrieve a product by its ID.
+    
+    Parameters:
+    - product_id: The ID of the product to retrieve
+    
+    Returns:
+    - The product with its details including ID, name, price, status, and availability
+    - 404 Not Found if the product is not found
+    """
+)
 async def get_product_by_id(
     product_id: str, use_case: FindProductById = Depends(find_product_by_id_use_case)
 ) -> FindProductByIdResponseDto:
@@ -129,7 +182,30 @@ async def get_product_by_id(
     return response_dto
 
 
-@product_router.post("/", response_model=CreateProductResponseDto, status_code=status.HTTP_201_CREATED)
+@product_router.post(
+    "/",
+    response_model=CreateProductResponseDto,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a New Product",
+    description="""
+    Create a new product in the catalog.
+    
+    Parameters:
+    - product_id: The ID of the product to create
+    - user_id: The ID of the user creating the product
+    - name: The name of the product
+    - description: The description of the product
+    - price: The price of the product
+    - location: The location of the product
+    - status: The status of the product (New, Used, or For parts)
+    - is_available: The availability status of the product (true/false)
+    
+    Returns:
+    - The created product with its details including ID, name, price, status, and availability
+    - 422 Unprocessable Entity if the request is invalid
+    - 500 Internal Server Error if an unexpected error occurs
+    """
+)
 async def create_product(
     request: CreateProductRequestDto,
     use_case: CreateProduct = Depends(create_product_use_case),
@@ -205,7 +281,22 @@ async def create_product(
         )
 
 
-@product_router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+@product_router.delete(
+    "/{product_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a Product",
+    description="""
+    Delete a product by its ID.
+    
+    Parameters:
+    - product_id: The ID of the product to delete
+    
+    Returns:
+    - 204 No Content if the product is deleted successfully
+    - 404 Not Found if the product is not found
+    - 500 Internal Server Error if an unexpected error occurs
+    """
+)
 async def delete_product(
     product_id: str,
     use_case: DeleteProduct = Depends(delete_product_use_case)
@@ -231,7 +322,29 @@ async def delete_product(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@product_router.put("/{product_id}", response_model=UpdateProductResponseDto)
+@product_router.put(
+    "/{product_id}",
+    response_model=UpdateProductResponseDto,
+    summary="Update a Product",
+    description="""
+    Update a product by its ID.
+    
+    Parameters:
+    - product_id: The ID of the product to update
+    - user_id: The ID of the user updating the product
+    - name: The new name of the product
+    - description: The new description of the product
+    - price: The new price of the product
+    - location: The new location of the product
+    - status: The new status of the product (New, Used, or For parts)
+    - is_available: The new availability status of the product (true/false)
+    
+    Returns:
+    - The updated product with its details including ID, name, price, status, and availability
+    - 404 Not Found if the product is not found
+    - 500 Internal Server Error if an unexpected error occurs
+    """
+)
 async def update_product(
     product_id: str, 
     request: UpdateProductRequestDto,
@@ -268,7 +381,16 @@ async def update_product(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
 
-@product_router.get("/status")
+@product_router.get(
+    "/status",
+    summary="Health Check",
+    description="""
+    Health check endpoint for AWS.
+    
+    Returns:
+    - A JSON object with the status and timestamp
+    """
+)
 async def get_status():
     """Health check endpoint for AWS."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
