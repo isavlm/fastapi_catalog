@@ -33,13 +33,22 @@ last_request_time = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
-    connection: Connection = SQLConnection()
-    SessionManager.initialize_session(connection)
-    yield
-    SessionManager.close_session()
+    logger.info("Starting up FastAPI application...")
+    try:
+        connection: Connection = SQLConnection()
+        SessionManager.initialize_session(connection)
+        logger.info("Database connection established successfully")
+        yield
+    except Exception as e:
+        logger.error(f"Error during startup: {str(e)}")
+        raise
+    finally:
+        logger.info("Shutting down FastAPI application...")
+        SessionManager.close_session()
 
 
 def create_app() -> FastAPI:
+    logger.info("Creating FastAPI application...")
     app = FastAPI(title="Catalog API", lifespan=lifespan)
 
     @app.middleware("http")
@@ -83,10 +92,13 @@ def create_app() -> FastAPI:
         }
 
     # Add routes
+    logger.info("Registering routes...")
     app.include_router(health_check_router, tags=["health check"])
     app.include_router(product_router, tags=["products"])
+    logger.info("Routes registered successfully")
 
     return app
 
-print("DATABASE_URL:", os.getenv("DATABASE_URL"))
+logger.info("Checking DATABASE_URL...")
+logger.info(f"DATABASE_URL is {'set' if os.getenv('DATABASE_URL') else 'not set'}")
 app = create_app()
