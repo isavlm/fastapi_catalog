@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from adapters.src.repositories import Connection, SessionManager, SQLConnection
 
-from api.src.routes import health_check_router, product_router
+from api.src.routes import product_router
 
 from dotenv import load_dotenv
 import os
@@ -33,23 +33,23 @@ last_request_time = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
-    logger.info("Starting up FastAPI application...")
-    try:
-        connection: Connection = SQLConnection()
-        SessionManager.initialize_session(connection)
-        logger.info("Database connection established successfully")
-        yield
-    except Exception as e:
-        logger.error(f"Error during startup: {str(e)}")
-        raise
-    finally:
-        logger.info("Shutting down FastAPI application...")
-        SessionManager.close_session()
+    connection: Connection = SQLConnection()
+    SessionManager.initialize_session(connection)
+    yield
+    SessionManager.close_session()
 
 
 def create_app() -> FastAPI:
-    logger.info("Creating FastAPI application...")
     app = FastAPI(title="Catalog API", lifespan=lifespan)
+
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
@@ -81,6 +81,10 @@ def create_app() -> FastAPI:
         
         return response
 
+    @app.get("/health_check")
+    async def health_check():
+        return {"status": "OK"}
+
     @app.get("/metrics")
     async def get_metrics():
         """Get basic API usage metrics"""
@@ -92,10 +96,7 @@ def create_app() -> FastAPI:
         }
 
     # Add routes
-    logger.info("Registering routes...")
-    app.include_router(health_check_router, tags=["health check"])
     app.include_router(product_router, tags=["products"])
-    logger.info("Routes registered successfully")
 
     return app
 
